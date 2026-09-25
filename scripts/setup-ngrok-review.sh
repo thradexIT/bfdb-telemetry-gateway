@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# IMPORTANT: this script requires LF line endings.
+# .gitattributes enforces LF for shell scripts even when the repository is
+# checked out from Windows and executed from WSL.
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS_DIR="$ROOT/infra/mosquitto/secrets"
 ENV_FILE="$ROOT/.env.remote"
