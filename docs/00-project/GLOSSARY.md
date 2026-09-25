@@ -1,10 +1,22 @@
 # Glossary
 
-- BFDB: Battery and Fuse Distribution Frame.
-- RAW MQTT: exact broker topic and payload before normalization.
-- Latest State: current projection assembled from partial MQTT updates.
-- TSDB: time-series database.
-- ICD: Interface Control Document.
-- Unit ID: Modbus logical device identifier.
-- Stale: last known value exists but exceeds freshness threshold.
-- Missing: no value has yet been observed.
+- **BFDB**: Battery and Fuse Distribution Frame.
+- **RAW MQTT**: exact broker topic and payload before gateway normalization.
+- **MQTT topic**: broker routing address such as `data/dev/EMU-BFDB-03`.
+- **MQTT payload**: JSON bytes carried under the MQTT topic.
+- **Partial update**: MQTT event that contains only a subset of points and/or attributes.
+- **Latest State**: current projection assembled by merging accepted partial MQTT updates per field.
+- **Historical observation**: value actually observed in a source event at a source time; not synonymous with Latest State.
+- **TSDB**: time-series database; TimescaleDB in the current PoC.
+- **ICD**: Interface Control Document.
+- **Unit ID**: Modbus logical device identifier.
+- **Register image**: in-memory 16-bit register representation served to Modbus clients.
+- **Stale**: last-known value exists but exceeds its freshness threshold.
+- **Missing**: no accepted value has yet been observed for the metric.
+- **Explicit zero**: source provides a numeric zero such as `"0.00"`; it must update state.
+- **Missing field**: source omitted the attribute; it must not be interpreted as zero.
+- **Synthetic identity mapping**: emulator-only mapping from raw point IDs to logical circuits.
+- **Field identity mapping**: evidence-backed mapping from real gateway/raw point identifiers to physical BFDB/circuit.
+- **Remote reviewer**: external read-only MQTT consumer used for PoC inspection.
+- **Reverse TCP tunnel**: temporary public TCP listener that forwards traffic to a local TCP service.
+- **MQTTS**: MQTT over TLS; production encryption target where applicable.
