@@ -1,0 +1,22 @@
+version: "0.1"
+publish:
+  intervalSeconds: 1.0
+  batchSize: 24
+  qos: 1
+  retain: false
+  topicTemplate: "data/dev/{serial}"
+electrical:
+  circuitsPerBfdb: 96
+  voltageNoise: 0.03
+  currentMaxStep: 0.35
+  loadStepProbability: 0.015
+  loadStepAmplitude: 3.0
+  currentMin: 0.0
+  currentMax: 14.0
+bfdbProfiles:
+  BFDB-01: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+  BFDB-02: {nominalVoltage: 14.95, initialCurrentBase: 3.0}
+  BFDB-03: {nominalVoltage: 13.80, initialCurrentBase: 1.5}
+partialUpdates:
+  enabled: true
+  stateOnlyEveryMessages: 10

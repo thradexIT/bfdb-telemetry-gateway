@@ -1,0 +1,18 @@
+version: "0.1"
+profile: emulator-lab
+devices:
+  - bfdbId: BFDB-01
+    serial: EMU-BFDB-01
+    unitId: 1
+    identity: {mode: emulator_linear, pointRegex: "^0_1_([0-9]+)$", minCircuit: 1, maxCircuit: 96}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+  - bfdbId: BFDB-02
+    serial: EMU-BFDB-02
+    unitId: 2
+    identity: {mode: emulator_linear, pointRegex: "^0_1_([0-9]+)$", minCircuit: 1, maxCircuit: 96}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+  - bfdbId: BFDB-03
+    serial: EMU-BFDB-03
+    unitId: 3
+    identity: {mode: emulator_linear, pointRegex: "^0_1_([0-9]+)$", minCircuit: 1, maxCircuit: 96}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}

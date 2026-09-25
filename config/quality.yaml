@@ -1,0 +1,11 @@
+version: "0.1"
+staleAfterSeconds: 15
+qualityWord:
+  bit0: voltage_valid
+  bit1: current_valid
+  bit2: power_valid
+  bit3: energy_valid
+  bit4: any_stale
+  bit5: data_seen
+  bit6: online
+  bit7: invalid
