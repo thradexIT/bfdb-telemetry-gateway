@@ -1,0 +1,16 @@
+services:
+  mosquitto:
+    volumes:
+      - ./infra/mosquitto/mosquitto.remote.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/acl:/mosquitto/config/acl:ro
+      - ./infra/mosquitto/secrets/passwd:/mosquitto/config/passwd:ro
+
+  field-emulator:
+    environment:
+      MQTT_USERNAME: bfdb-emulator
+      MQTT_PASSWORD: ${MQTT_EMULATOR_PASSWORD}
+
+  telemetry-gateway:
+    environment:
+      MQTT_USERNAME: bfdb-gateway
+      MQTT_PASSWORD: ${MQTT_GATEWAY_PASSWORD}

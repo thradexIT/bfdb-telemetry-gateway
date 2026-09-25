@@ -1,0 +1,8 @@
+user bfdb-emulator
+topic write data/dev/#
+
+user bfdb-gateway
+topic read data/dev/#
+
+user bfdb-reviewer
+topic read data/dev/#

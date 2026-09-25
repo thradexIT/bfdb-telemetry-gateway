@@ -1,0 +1,17 @@
+name: Integration Smoke
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: bash scripts/ci-smoke.sh
+      - if: failure()
+        run: cat /tmp/bfdb-compose.log || true

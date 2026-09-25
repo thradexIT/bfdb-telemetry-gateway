@@ -1,0 +1,22 @@
+version: "0.1"
+transport: {role: server, productionPort: 502, labPort: 1502}
+registerType: input
+functionCode: 4
+encoding: {type: float32, registersPerValue: 2, byteOrder: big, wordOrder: high_first}
+devices:
+  - {unitId: 1, bfdbId: BFDB-01}
+  - {unitId: 2, bfdbId: BFDB-02}
+  - {unitId: 3, bfdbId: BFDB-03}
+telemetry:
+  circuits: 96
+  registersPerCircuit: 8
+  start: 0
+  end: 767
+  metrics:
+    voltage: {offset: 0, width: 2, unit: V}
+    current: {offset: 2, width: 2, unit: A}
+    power: {offset: 4, width: 2, unit: W}
+    energy: {offset: 6, width: 2, unit: kWh}
+reserved:
+  deviceHealth: {start: 800, end: 815}
+  circuitQuality: {start: 896, end: 991}
