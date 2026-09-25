@@ -2,9 +2,12 @@ import json,time
 import paho.mqtt.client as mqtt
 
 class MqttPublisher:
-    def __init__(self,host,port,qos,retain):
+    def __init__(self,host,port,qos,retain,username=None,password=None):
         self.host=host; self.port=port; self.qos=qos; self.retain=retain
         self.client=mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,client_id="bfdb-field-emulator")
+        if username:
+            self.client.username_pw_set(username,password)
+
     def connect(self):
         while True:
             try:
@@ -14,6 +17,7 @@ class MqttPublisher:
             except OSError as exc:
                 print(f"MQTT_CONNECT_RETRY error={exc}",flush=True)
                 time.sleep(2)
+
     def publish(self,topic,payload):
         body=json.dumps(payload,separators=(",",":"))
         info=self.client.publish(topic,body,qos=self.qos,retain=self.retain)
