@@ -1,7 +1,9 @@
 .env
+.env.remote
 .venv/
 __pycache__/
 .pytest_cache/
 *.pyc
 *.log
 .DS_Store
+infra/mosquitto/secrets/
