@@ -38,18 +38,24 @@ The root [README](../README.md) is the executable operator guide.
 ## Recommended reading order
 
 1. [Project Charter](00-project/PROJECT-CHARTER.md)
-2. [Project Status](00-project/STATUS.md)
-3. [System Overview](02-architecture/system-overview.md)
-4. [MQTT Wire Contract](03-contracts/mqtt-wire-contract.md)
-5. [Partial Update Contract](03-contracts/partial-update-contract.md)
-6. [Canonical Telemetry Contract](03-contracts/canonical-telemetry-contract.md)
-7. [Timeseries Ingestion Policy](05-timeseries/ingestion-policy.md)
-8. [ICD — Gateway ↔ Metasys](ICD.md)
-9. [Test Strategy](07-testing/test-strategy.md)
-10. [Lab Runbook](08-commissioning/lab-runbook.md)
-11. [Remote MQTT Access](08-commissioning/remote-mqtt-access.md)
-12. [Panelized Identity Correction 2026-09-28](01-evidence/panelized-identity-correction-2026-09-28.md)
-13. [Lab Evidence 2026-09-25](01-evidence/lab-validation-2026-09-25.md)
+2. [Documentation Readiness](00-project/DOCUMENTATION-READINESS.md)
+3. [Project Status](00-project/STATUS.md)
+4. [System Overview](02-architecture/system-overview.md)
+5. [MQTT Wire Contract](03-contracts/mqtt-wire-contract.md)
+6. [Partial Update Contract](03-contracts/partial-update-contract.md)
+7. [Canonical Telemetry Contract](03-contracts/canonical-telemetry-contract.md)
+8. [Timeseries Ingestion Policy](05-timeseries/ingestion-policy.md)
+9. [ICD — Gateway ↔ Metasys](ICD.md)
+10. [Metasys Commissioning Runbook](08-commissioning/metasys-commissioning-runbook.md)
+11. [Real Hardware Integration Dossier](04-emulator/real-hardware-integration-dossier.md)
+12. [Test Strategy](07-testing/test-strategy.md)
+13. [Release Validation Receipt](07-testing/release-validation-receipt.md)
+14. [Lab Runbook](08-commissioning/lab-runbook.md)
+15. [Remote MQTT Access](08-commissioning/remote-mqtt-access.md)
+16. [Production Operations Runbook](09-operations/production-runbook.md)
+17. [SLO / Monitoring / DR](09-operations/slo-monitoring-dr.md)
+18. [Panelized Identity Correction 2026-09-28](01-evidence/panelized-identity-correction-2026-09-28.md)
+19. [Lab Evidence 2026-09-25](01-evidence/lab-validation-2026-09-25.md)
 
 ## Directory map
 
@@ -106,7 +112,7 @@ Lab startup, MQTT Explorer, external remote review, and eventual Metasys commiss
 
 ### 09-operations
 
-Configuration, security, observability, troubleshooting, and recovery.
+Configuration, security, observability, troubleshooting, production operations, SLOs, monitoring and disaster recovery.
 
 ### adr
 
