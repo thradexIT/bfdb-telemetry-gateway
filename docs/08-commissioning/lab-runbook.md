@@ -1,40 +1,60 @@
 # Lab Runbook
 
-## 1. Start the local stack
+## Objective
 
-```bash
-cp .env.example .env
-docker compose up --build
+Bring up the complete emulator path and verify the same data through:
+
+```text
+RAW MQTT
+TimescaleDB
+Modbus TCP
 ```
 
-Expected log markers include:
+## 1. Start
+
+Recommended:
+
+```bash
+make up
+```
+
+Equivalent:
+
+```bash
+docker compose up -d --build
+```
+
+Check:
+
+```bash
+make ps
+```
+
+Logs:
+
+```bash
+make logs
+```
+
+Healthy markers include:
 
 ```text
 EMULATOR_READY
-GATEWAY_READY
-TSDB_CONNECTED
-MQTT_CONNECTED
-MODBUS_LISTEN
 MQTT_TX
+MQTT_CONNECTED
 MQTT_RX
+TSDB_CONNECTED
+GATEWAY_READY
+MODBUS_LISTEN
 ```
 
-## 2. RAW MQTT
-
-Local MQTT Explorer can connect to port 1883, or use:
+## 2. Inspect RAW MQTT
 
 ```bash
-docker run --rm -it \
-  --network bfdb-telemetry-gateway_default \
-  eclipse-mosquitto:2.0 \
-  mosquitto_sub \
-  -h mosquitto \
-  -p 1883 \
-  -t 'data/dev/#' \
-  -v
+make raw
 ```
 
-Expected topic families:
+Expected topics:
 
 ```text
 data/dev/EMU-BFDB-01
@@ -42,20 +62,38 @@ data/dev/EMU-BFDB-02
 data/dev/EMU-BFDB-03
 ```
 
-## 3. Historical persistence
+Corrected point families:
 
-```bash
-docker compose exec timescaledb \
-  psql -U bfdb -d bfdb \
-  -c "SELECT observed_at,bfdb_id,circuit_id,voltage_v,current_a,power_w,energy_kwh
-      FROM telemetry_samples
-      ORDER BY observed_at DESC
-      LIMIT 20;"
+```text
+0_1_1 .. 0_1_24
+0_2_1 .. 0_2_24
+0_3_1 .. 0_3_24
+0_4_1 .. 0_4_24
 ```
 
-## 4. Modbus
+A value such as `0_1_96` means the wrong/superseded emulator revision is running.
 
-Linux/WSL:
+## 3. Inspect TimescaleDB
+
+```bash
+make tsdb
+```
+
+The query returns:
+
+- source observation timestamp;
+- BFDB id;
+- logical circuit id;
+- raw point id;
+- V/I/P/E.
+
+## 4. Read Modbus
+
+```bash
+make modbus
+```
+
+Or explicitly:
 
 ```bash
 python3 tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 1 --circuit 1
@@ -69,23 +107,24 @@ Windows PowerShell:
 python tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 3 --circuit 1
 ```
 
-Bash line-continuation backslashes must not be pasted into PowerShell.
+## 5. Same-circuit comparison
 
-## 5. Same-circuit cross-layer comparison
+Choose a BFDB/circuit.
 
-For a deterministic comparison:
-
-1. choose one BFDB/circuit;
-2. observe the current RAW MQTT value;
-3. optionally pause the emulator to stop value changes;
-4. query the latest TSDB observation;
-5. read the corresponding Modbus Unit ID/circuit;
-6. compare V/I/P/E within expected rounding/FLOAT32 precision.
-
-Example freeze:
+Optionally freeze the source:
 
 ```bash
 docker compose pause field-emulator
+```
+
+Compare:
+
+```text
+RAW MQTT raw_point_id/value
+        ↓
+TimescaleDB logical circuit row
+        ↓
+Modbus Unit ID + circuit
 ```
 
 Resume:
@@ -94,33 +133,68 @@ Resume:
 docker compose unpause field-emulator
 ```
 
-If paused beyond the configured freshness threshold, quality may become STALE while numeric last-known values remain present. That is expected.
+If the pause exceeds the freshness threshold, quality can become STALE while the last-known numeric value remains available.
 
-## 6. Partial update test
+## 6. Partial update behavior
 
-Observe a full point first, then a later state-only patch:
+A point may later contain only:
 
 ```json
 {"state":"ONLINE"}
 ```
 
-PASS:
+PASS behavior:
 
-- Latest State retains prior V/I/P/E;
-- explicit missing fields are not converted to zero;
-- Modbus keeps the last-known numeric values;
-- quality/age evolves independently.
+- missing electrical fields are not converted to zero;
+- Latest State preserves previous V/I/P/E;
+- Modbus retains last-known numeric values;
+- explicit `"0.00"` still updates to zero;
+- quality/freshness evolves separately.
 
-Historical semantics are subject to the known v0.1 persistence correction described in [ingestion policy](../05-timeseries/ingestion-policy.md).
+The historical partial-observation semantic correction remains separately documented in the timeseries ingestion policy.
 
-## 7. External reviewer
+## 7. Authenticated remote review
 
-For direct MQTT Explorer from another computer, follow:
+To let another person use MQTT Explorer:
+
+```bash
+make remote-setup
+make remote-up
+make remote-creds
+```
+
+Then in another terminal:
+
+```bash
+make pinggy
+```
+
+Full instructions:
 
 [Remote MQTT Access](remote-mqtt-access.md)
 
+## 8. Stop
+
+Local:
+
+```bash
+make down
+```
+
+Authenticated remote:
+
+```bash
+make remote-down
+```
+
 ## Pass boundary
 
-The local emulated happy path passes when each BFDB has coherent V/I/P/E visible through required projections and RAW MQTT is independently inspectable.
+The emulated lab path passes when:
 
-Field PoC closure additionally requires real hardware substitution, identity evidence, failure-scenario proof, and Metasys commissioning.
+- RAW MQTT is independently visible;
+- all three BFDB topics publish;
+- point ids obey the 24-position model;
+- TimescaleDB receives electrical telemetry;
+- Modbus Units 1/2/3 return coherent V/I/P/E.
+
+This does not by itself close real hardware/Metasys commissioning.
