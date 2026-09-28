@@ -2,6 +2,7 @@ import os,time,yaml
 from pathlib import Path
 from electrical.model import ElectricalFleet
 from mqtt.publisher import MqttPublisher
+from mqtt.point_id import encode_panelized_point_id
 
 ROOT=Path(__file__).resolve().parents[2]
 CONFIG=ROOT/"config"
@@ -38,12 +39,25 @@ def main():
     interval=float(pubcfg["intervalSeconds"])
     batch=int(pubcfg["batchSize"])
     circuits=int(cfg["electrical"]["circuitsPerBfdb"])
+    positions_per_panel=int(cfg["electrical"].get("positionsPerPanel",24))
+
+    if circuits % positions_per_panel != 0:
+        raise ValueError(
+            f"circuitsPerBfdb={circuits} must be divisible by positionsPerPanel={positions_per_panel}"
+        )
+
     cursors={d["bfdbId"]:1 for d in devices}
     msgid=1000
     cycle=0
     last=time.monotonic()
 
-    print(f"EMULATOR_READY devices={len(devices)} circuits_per_bfdb={circuits}",flush=True)
+    print(
+        f"EMULATOR_READY devices={len(devices)} "
+        f"circuits_per_bfdb={circuits} "
+        f"positions_per_panel={positions_per_panel} "
+        f"panels_per_bfdb={circuits//positions_per_panel}",
+        flush=True,
+    )
 
     while True:
         now=time.monotonic()
@@ -56,10 +70,20 @@ def main():
             start=cursors[d["bfdbId"]]
             selected=[((start-1+i)%circuits)+1 for i in range(batch)]
             cursors[d["bfdbId"]]=((start-1+batch)%circuits)+1
-            reported={f"0_1_{c}":point_payload(fleet.get(d["bfdbId"],c)) for c in selected}
 
-            if cfg["partialUpdates"]["enabled"] and cycle>4 and msgid%int(cfg["partialUpdates"]["stateOnlyEveryMessages"])==0:
-                reported[f"0_1_{selected[0]}"]={"state":"ONLINE"}
+            reported={
+                encode_panelized_point_id(c,positions_per_panel):
+                    point_payload(fleet.get(d["bfdbId"],c))
+                for c in selected
+            }
+
+            if (
+                cfg["partialUpdates"]["enabled"]
+                and cycle>4
+                and msgid%int(cfg["partialUpdates"]["stateOnlyEveryMessages"])==0
+            ):
+                partial_id=encode_panelized_point_id(selected[0],positions_per_panel)
+                reported[partial_id]={"state":"ONLINE"}
 
             epoch=int(time.time())
             payload={
@@ -73,7 +97,11 @@ def main():
             }
             topic=pubcfg["topicTemplate"].format(serial=d["serial"])
             pub.publish(topic,payload)
-            print(f"MQTT_TX topic={topic} msgid={msgid} points={len(reported)}",flush=True)
+            print(
+                f"MQTT_TX topic={topic} msgid={msgid} "
+                f"points={len(reported)}",
+                flush=True,
+            )
             msgid+=1
 
         time.sleep(interval)
