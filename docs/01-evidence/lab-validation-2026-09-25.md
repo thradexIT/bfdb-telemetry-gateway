@@ -149,9 +149,9 @@ A direct RAW MQTT message was observed where one point contained only:
 }
 ```
 
-The state-only semantic evidence remains useful, but the raw point id shown above came from the superseded flat-identity emulator. In the corrected emulator the equivalent logical Circuit 49 is represented as `0_3_1`.
-
 while other points in the same message contained electrical metrics.
+
+The state-only semantic evidence remains useful, but the raw point id shown above came from the superseded flat-identity emulator. In the corrected emulator the equivalent logical Circuit 49 is represented as `0_3_1`.
 
 This is the exact condition required to test:
 
