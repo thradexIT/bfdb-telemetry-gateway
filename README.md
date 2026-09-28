@@ -85,7 +85,7 @@ Payload shape follows the observed field pattern:
   "sendtime": 1790371605,
   "version": 1,
   "reported": {
-    "0_1_25": {
+    "0_2_1": {
       "state": "ONLINE",
       "U1": "13.82",
       "U2": "0.00",
@@ -102,7 +102,16 @@ Payload shape follows the observed field pattern:
 
 Topic and payload are separate MQTT concepts. The emulator publishes them independently; it does **not** wrap them into a synthetic `{"topic":...,"payload":...}` object.
 
-The emulator rotates 24-point batches so that all 96 logical circuits are covered. Voltage/current/power/energy are generated coherently: power approximately follows `V × I`, and positive energy accumulates over time.
+The emulator rotates 24-point batches so that all 96 logical circuits are covered. The MQTT point identity is now **panelized**: the third component is always a position `1..24`, never a flat circuit number up to 96.
+
+```text
+Logical circuits  1..24  -> 0_1_1 .. 0_1_24
+Logical circuits 25..48  -> 0_2_1 .. 0_2_24
+Logical circuits 49..72  -> 0_3_1 .. 0_3_24   (synthetic group pending field proof)
+Logical circuits 73..96  -> 0_4_1 .. 0_4_24   (synthetic group pending field proof)
+```
+
+Therefore IDs such as `0_1_25` and `0_1_96` are invalid in the corrected emulator. The group-to-physical-frame meaning for real field data remains evidence-TBD. Voltage/current/power/energy are generated coherently: power approximately follows `V × I`, and positive energy accumulates over time.
 
 ## Partial updates are first-class
 
@@ -310,7 +319,7 @@ Documentation uses these labels:
 - **INFERENCE** — plausible interpretation not yet proven;
 - **TBD** — requires field evidence or integrator confirmation.
 
-This is especially important around real physical identity mapping. The emulator's `0_1_n -> circuit n` mapping is synthetic and **must not be treated as proof of the real device mapping**.
+This is especially important around real physical identity mapping. The corrected emulator uses a synthetic **4 groups × 24 positions** mapping. That prevents impossible flat IDs such as `0_1_96`, but the real meaning of group numbers—especially how frame B is represented—remains unverified and **must not be treated as field truth**.
 
 ## Known open items
 
