@@ -2,7 +2,7 @@ import os,time,yaml
 from pathlib import Path
 from electrical.model import ElectricalFleet
 from mqtt.publisher import MqttPublisher
-from mqtt.point_id import encode_panelized_point_id
+from electrical.point_id import encode_panelized_point_id
 
 ROOT=Path(__file__).resolve().parents[2]
 CONFIG=ROOT/"config"
