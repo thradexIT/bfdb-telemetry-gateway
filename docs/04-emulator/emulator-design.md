@@ -25,6 +25,36 @@ EMU-BFDB-02
 EMU-BFDB-03
 ```
 
+## Corrected panelized identity model
+
+The previous emulator flattened all 96 logical circuits under one family:
+
+```text
+0_1_1 ... 0_1_96
+```
+
+That was a modeling defect.
+
+The corrected emulator respects a 24-position panel boundary:
+
+```text
+logical circuits  1..24  -> 0_1_1 .. 0_1_24
+logical circuits 25..48  -> 0_2_1 .. 0_2_24
+logical circuits 49..72  -> 0_3_1 .. 0_3_24
+logical circuits 73..96  -> 0_4_1 .. 0_4_24
+```
+
+Thus:
+
+```text
+0_1_24  valid
+0_2_1   valid
+0_1_25  invalid
+0_1_96  invalid
+```
+
+The emulator's group 3/4 naming is deliberately labeled **synthetic**. It allows the 96-circuit PoC to preserve 24-position boundaries, but it does not claim that real frame B is encoded by the AWT gateway as `0_3_*` and `0_4_*`.
+
 ## Publication model
 
 - MQTT topic and payload are passed separately to the MQTT client;
@@ -32,16 +62,42 @@ EMU-BFDB-03
 - JSON values use observed field naming such as U1/I1/P1/EP1;
 - numeric metric values are serialized as strings;
 - 24 points are published per BFDB message;
-- batches rotate through all 96 circuits;
+- each 24-point batch aligns to one synthetic panel group;
+- four batches cover 96 logical circuits;
 - deterministic state-only partial patches are injected.
 
 ```mermaid
 flowchart LR
-    M["288 circuit models"] --> T["tick electrical state"]
-    T --> B["select 24-point batch / BFDB"]
-    B --> J["build observed-shaped JSON"]
+    M["96 circuit models / BFDB"] --> T["tick electrical state"]
+    T --> P1["Panel group 1<br/>positions 1..24"]
+    T --> P2["Panel group 2<br/>positions 1..24"]
+    T --> P3["Panel group 3<br/>positions 1..24"]
+    T --> P4["Panel group 4<br/>positions 1..24"]
+    P1 --> J["build observed-shaped JSON"]
+    P2 --> J
+    P3 --> J
+    P4 --> J
     J --> P["MQTT publish<br/>topic + payload"]
 ```
+
+## Logical-circuit reconstruction
+
+The gateway maps the panelized raw identity back to the stable logical circuit used by Latest State, TimescaleDB and Modbus:
+
+```text
+circuitId = ((panelIndex - 1) * 24) + position
+```
+
+Examples:
+
+```text
+0_1_24 -> Circuit 24
+0_2_1  -> Circuit 25
+0_3_1  -> Circuit 49
+0_4_24 -> Circuit 96
+```
+
+This preserves the existing 96-circuit Modbus contract while fixing the MQTT representation.
 
 ## Electrical coherence
 
@@ -72,23 +128,25 @@ This intentionally exercises the gateway rule:
 missing metric != zero
 ```
 
-## Identity mapping
+The partial update uses the same panelized point-id encoder as full points.
 
-The emulator currently uses a synthetic linear resolver such as:
+## U1/U2 suffix boundary
+
+The topology review also discusses possible relationships between U1/I1/P1/EP1 and U2/I2/P2/EP2 and internal 12-channel sections.
+
+That interpretation is **not implemented as physical truth yet**, because the available mapping discussion contains hypotheses that still require a focused field test.
+
+This correction therefore changes only the point-id panel boundary that is sufficiently clear for the emulator:
 
 ```text
-0_1_1  -> synthetic circuit 1
-...
-0_1_96 -> synthetic circuit 96
+third component <= 24
 ```
 
-This is a **test mapping only**.
-
-It must not be used as evidence that real `0_1_n` identifiers correspond directly to physical circuit numbers.
+It does not silently redefine U1/U2 physical semantics.
 
 ## msgid behavior
 
-Current v0.1 uses one global monotonic counter across all three synthetic serials, so a single BFDB can appear to advance by three between its own messages.
+The current emulator uses one global monotonic counter across all three synthetic serials, so a single BFDB can appear to advance by three between its own messages.
 
 Example:
 

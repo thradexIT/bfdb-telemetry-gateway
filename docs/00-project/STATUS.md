@@ -1,6 +1,6 @@
 # Project Status — PoC v0.1
 
-Last updated: 2026-09-25
+Last updated: 2026-09-28
 
 ## Executive state
 
@@ -32,7 +32,7 @@ This does **not** mean the field PoC or product is finished.
 | B5 | Latest State + quality/stale | IMPLEMENTED, scenario certification incomplete |
 | B6 | Timescale persistence | IMPLEMENTED, historical partial-patch semantics correction open |
 | B7 | Modbus projection | DONE in lab |
-| B8 | 3 BFDB × 96 circuits | DONE in emulator |
+| B8 | 3 BFDB × 96 circuits | CORRECTED to 4 × 24 panelized raw identities; validation in current PR |
 | B9 | Emulated E2E | DONE in automated smoke; additional negative-path certification open |
 | B10 | Real AMC/AWT hardware substitution | NOT DONE |
 | B11 | Metasys commissioning | NOT DONE |
@@ -49,6 +49,21 @@ On 2026-09-25:
 - an external MQTT Explorer connected to the broker through Pinggy TCP and saw all three topics.
 
 See [lab evidence](../01-evidence/lab-validation-2026-09-25.md).
+
+## Identity correction — 2026-09-28
+
+The previous emulator emitted flat raw point ids such as `0_1_25` through `0_1_96`. That representation is now rejected as inconsistent with the reviewed 24-position panel model.
+
+Corrected synthetic mapping:
+
+```text
+1..24  -> 0_1_1 .. 0_1_24
+25..48 -> 0_2_1 .. 0_2_24
+49..72 -> 0_3_1 .. 0_3_24
+73..96 -> 0_4_1 .. 0_4_24
+```
+
+The third component is constrained to `1..24`. The real field meaning of groups 3/4 remains TBD; their use in the emulator is synthetic only.
 
 ## Known technical gaps
 

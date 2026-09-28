@@ -1,72 +1,81 @@
 # BFDB Telemetry Gateway
 
-Industrial telemetry gateway PoC that converts asynchronous MQTT telemetry from three BFDB domains into deterministic current state, historical time-series storage, and a read-only Modbus TCP interface intended for Johnson Controls Metasys.
+Industrial telemetry gateway PoC for converting asynchronous BFDB electrical telemetry delivered over MQTT into:
 
-> **Current status:** the fully emulated vertical slice is running and has been validated locally and through an external MQTT TCP tunnel. The PoC is **not yet field-closed**: real AMC16Z-FDK24/AWT100 substitution, physical identity mapping, failure-scenario certification, and Metasys commissioning remain open.
+1. **RAW MQTT data that can be inspected directly**;
+2. **Latest State** for deterministic current values;
+3. **TimescaleDB history** for historical queries and future Site Mapper consumption;
+4. **read-only Modbus TCP** for Johnson Controls Metasys or another industrial Modbus client.
 
-## Executive summary
+> **Project status:** the emulated vertical slice is executable and automatically tested. It is not yet a field-closed production integration. Real AMC16Z-FDK24/AWT100 identity mapping, real hardware substitution, all failure scenarios, and Metasys commissioning remain open.
 
-The project solves one integration problem:
+---
 
-**Take electrical measurements arriving asynchronously over MQTT and make them available simultaneously as historical telemetry and as deterministic Modbus TCP registers.**
+## What this project does
 
-The target scale is:
-
-- 3 BFDB;
-- 96 circuits per BFDB;
-- 4 electrical variables per circuit: Voltage, Current, Power, Energy;
-- 288 circuits total;
-- 1,152 logical telemetry values;
-- 2,304 16-bit Modbus registers for the FLOAT32 telemetry block.
-
-The platform intentionally separates **raw transport**, **current state**, **history**, and **industrial polling** so that no consumer is forced to depend on another consumer's access pattern.
-
-```mermaid
-flowchart LR
-    FE["Field Emulator<br/>3 BFDB × 96 circuits"] -->|MQTT publish| MQ["Mosquitto Broker"]
-    MQ -->|RAW subscribe| MX["MQTT Explorer / mosquitto_sub"]
-    MQ -->|data/dev/#| SUB["Gateway Subscriber"]
-    SUB --> PARSE["Parser + Identity Resolver + Normalizer"]
-    PARSE --> LS["Latest State<br/>current values + per-metric age"]
-    PARSE --> TS["TimescaleDB<br/>historical observations"]
-    LS --> Q["Quality / stale evaluation"]
-    Q --> REG["Modbus register image"]
-    REG --> MB["Modbus TCP Server<br/>Unit 1 / 2 / 3"]
-    MB --> META["Johnson Controls Metasys<br/>future field commissioning"]
-    TS --> SM["Site Mapper historical queries<br/>future integration"]
-```
-
-### Core architectural rule
+The gateway separates four concerns that must not be coupled:
 
 ```text
-MQTT       = asynchronous source / push
-Latest State = current reconstructed state
-TimescaleDB  = historical projection
+MQTT         = asynchronous source / push
+Latest State = best current known values
+TimescaleDB  = historical observations
 Modbus TCP   = synchronous polling surface
 ```
 
-**Modbus never synchronously queries MQTT or TimescaleDB.** It reads only the in-memory Latest State / register projection.
-
-## Physical target context
-
-The intended field chain is:
+**Modbus never queries MQTT or TimescaleDB synchronously.** It reads an in-memory register image derived from Latest State.
 
 ```mermaid
 flowchart LR
-    LOAD["DC circuits / loads"] --> SENS["AHKC-EKA current sensing"]
-    SENS --> AMC["Acrel AMC16Z-FDK24"]
-    AMC -->|RS-485 / Modbus RTU| AWT["AWT100-WIFI"]
-    AWT -->|MQTT| BROKER["MQTT broker"]
-    BROKER --> GW["BFDB Telemetry Gateway"]
-    GW -->|Modbus TCP| METASYS["Metasys"]
-    GW -->|historical telemetry| TSDB["TimescaleDB / Site Mapper"]
+    FE["Field Emulator<br/>3 BFDB × 96 logical circuits"] -->|"MQTT publish"| MQ["Mosquitto"]
+    MQ -->|"RAW inspection"| MX["MQTT Explorer / mosquitto_sub"]
+    MQ -->|"data/dev/#"| SUB["MQTT Subscriber"]
+    SUB --> PARSER["Parser + Identity Resolver + Normalizer"]
+    PARSER --> STATE["Latest State"]
+    PARSER --> TS["TimescaleDB"]
+    STATE --> QUAL["Quality / stale"]
+    QUAL --> REG["Register Image"]
+    REG --> MODBUS["Modbus TCP Server<br/>Unit 1 / 2 / 3"]
+    MODBUS --> META["Metasys / test client"]
+    TS --> SITE["Future Site Mapper history"]
 ```
 
-The emulator replaces the field source **above the broker boundary**. It does not claim complete vendor-device fidelity.
+### Target physical chain
 
-## What the emulator publishes
+```mermaid
+flowchart LR
+    LOAD["DC circuit / load"] --> SENSOR["AHKC-EKA"]
+    SENSOR --> AMC["Acrel AMC16Z-FDK24"]
+    AMC -->|"RS-485 / Modbus RTU"| AWT["AWT100-WIFI"]
+    AWT -->|"MQTT"| BROKER["MQTT broker"]
+    BROKER --> GW["BFDB Telemetry Gateway"]
+    GW -->|"Modbus TCP"| METASYS["Johnson Controls Metasys"]
+    GW -->|"history"| TSDB["TimescaleDB / Site Mapper"]
+```
 
-Three synthetic gateway serials are emitted:
+The current emulator replaces the field source above the MQTT broker boundary. It is a test source, not a claim of complete vendor-device fidelity.
+
+---
+
+# System scale
+
+Current PoC scale:
+
+| Dimension | Value |
+|---|---:|
+| BFDB | 3 |
+| Logical circuits per BFDB | 96 |
+| Total circuits | 288 |
+| Metrics per circuit | 4 |
+| Metrics | Voltage, Current, Power, Energy |
+| Logical telemetry values | 1,152 |
+| 16-bit registers per FLOAT32 | 2 |
+| Telemetry registers across Unit IDs 1/2/3 | 2,304 |
+
+---
+
+# MQTT model
+
+Topics:
 
 ```text
 data/dev/EMU-BFDB-01
@@ -74,7 +83,7 @@ data/dev/EMU-BFDB-02
 data/dev/EMU-BFDB-03
 ```
 
-Payload shape follows the observed field pattern:
+Representative payload:
 
 ```json
 {
@@ -85,7 +94,7 @@ Payload shape follows the observed field pattern:
   "sendtime": 1790371605,
   "version": 1,
   "reported": {
-    "0_1_25": {
+    "0_2_1": {
       "state": "ONLINE",
       "U1": "13.82",
       "U2": "0.00",
@@ -100,175 +109,395 @@ Payload shape follows the observed field pattern:
 }
 ```
 
-Topic and payload are separate MQTT concepts. The emulator publishes them independently; it does **not** wrap them into a synthetic `{"topic":...,"payload":...}` object.
+The MQTT **topic and payload are separate**. The project does not invent a JSON wrapper such as `{"topic":...,"payload":...}`.
 
-The emulator rotates 24-point batches so that all 96 logical circuits are covered. Voltage/current/power/energy are generated coherently: power approximately follows `V × I`, and positive energy accumulates over time.
+## Corrected 24-position point identity
 
-## Partial updates are first-class
+The emulator now respects a 24-position panel boundary:
 
-Observed field traffic can be partial. A point may arrive as:
+```text
+Logical circuits  1..24  -> 0_1_1 .. 0_1_24
+Logical circuits 25..48  -> 0_2_1 .. 0_2_24
+Logical circuits 49..72  -> 0_3_1 .. 0_3_24
+Logical circuits 73..96  -> 0_4_1 .. 0_4_24
+```
+
+Therefore the corrected emulator rejects:
+
+```text
+0_1_25
+0_1_49
+0_1_96
+0_5_1
+```
+
+The gateway reconstructs the stable logical circuit with:
+
+```text
+circuitId = ((panelIndex - 1) * 24) + position
+```
+
+Examples:
+
+```text
+0_1_24 -> Circuit 24
+0_2_1  -> Circuit 25
+0_3_1  -> Circuit 49
+0_4_24 -> Circuit 96
+```
+
+Groups 3 and 4 are **synthetic emulator groups**. Their exact correspondence to the real frame-B namespace remains field-TBD.
+
+## Partial updates
+
+MQTT messages may be partial.
+
+A point can contain:
 
 ```json
 {"state":"ONLINE"}
 ```
 
-after previously carrying V/I/P/E.
+without V/I/P/E.
 
 Contract:
 
-- missing field != zero;
-- missing field = not updated;
-- explicit `"0.00"` = real zero;
-- Latest State merges per attribute;
-- an older per-field timestamp cannot overwrite a newer value.
+```text
+missing field != zero
+missing field = not updated
+explicit "0.00" = real zero
+```
 
-This distinction is critical for both Modbus output and historical semantics.
+Latest State merges per attribute and keeps the previous metric when the new patch omits it.
 
-## Modbus contract
+---
 
-The baseline projection uses one TCP server with three logical Unit IDs:
+# Fastest way to run it
 
-| Unit ID | Logical device |
+## Requirements
+
+Recommended development environment:
+
+- Docker Desktop / Docker Engine with Docker Compose;
+- WSL/Linux/macOS shell for the documented Bash commands;
+- Python 3 only if using the local Modbus reader outside Docker;
+- OpenSSH client for Pinggy remote access;
+- MQTT Explorer or another MQTT client if desired.
+
+Check:
+
+```bash
+docker --version
+docker compose version
+python3 --version
+ssh -V
+```
+
+## 1. Clone / enter the repository
+
+```bash
+git clone https://github.com/thradexIT/bfdb-telemetry-gateway.git
+cd bfdb-telemetry-gateway
+```
+
+If the repository is already cloned:
+
+```bash
+git pull
+```
+
+See all helper commands:
+
+```bash
+make help
+```
+
+---
+
+# Option A — Local lab, quickest smoke test
+
+Start the local stack:
+
+```bash
+make up
+```
+
+Equivalent command:
+
+```bash
+docker compose up -d --build
+```
+
+Check services:
+
+```bash
+make ps
+```
+
+Expected services:
+
+```text
+mosquitto
+timescaledb
+telemetry-gateway
+field-emulator
+```
+
+Default ports:
+
+| Service | Host port |
+|---|---:|
+| MQTT / Mosquitto | 1883 |
+| PostgreSQL / TimescaleDB | 5432 |
+| Modbus TCP lab | 1502 |
+
+Follow logs:
+
+```bash
+make logs
+```
+
+Healthy log markers include:
+
+```text
+EMULATOR_READY
+MQTT_TX
+MQTT_CONNECTED
+MQTT_RX
+TSDB_CONNECTED
+GATEWAY_READY
+MODBUS_LISTEN
+```
+
+---
+
+# See the RAW MQTT data
+
+The easiest repository command is:
+
+```bash
+make raw
+```
+
+The script automatically discovers the Docker Compose network and subscribes to:
+
+```text
+data/dev/#
+```
+
+Expected topics:
+
+```text
+data/dev/EMU-BFDB-01
+data/dev/EMU-BFDB-02
+data/dev/EMU-BFDB-03
+```
+
+With the corrected identity model, inspect the `reported` keys. Across cycles you should see:
+
+```text
+0_1_1 .. 0_1_24
+0_2_1 .. 0_2_24
+0_3_1 .. 0_3_24
+0_4_1 .. 0_4_24
+```
+
+You should **not** see `0_1_96`.
+
+Press `Ctrl+C` to stop watching MQTT.
+
+---
+
+# See the historical data in TimescaleDB
+
+Quick command:
+
+```bash
+make tsdb
+```
+
+Equivalent SQL command:
+
+```bash
+docker compose exec timescaledb \
+  psql -U bfdb -d bfdb \
+  -c "SELECT observed_at,bfdb_id,circuit_id,raw_point_id,voltage_v,current_a,power_w,energy_kwh
+      FROM telemetry_samples
+      ORDER BY observed_at DESC
+      LIMIT 20;"
+```
+
+This lets you compare:
+
+```text
+RAW MQTT raw_point_id
+        ↓
+logical circuit_id
+        ↓
+V / I / P / E historical row
+```
+
+---
+
+# See the Modbus TCP projection
+
+Quick smoke:
+
+```bash
+make modbus
+```
+
+Equivalent:
+
+```bash
+python3 tools/modbus-reader/read.py \
+  --host 127.0.0.1 \
+  --port 1502 \
+  --unit 1 \
+  --circuit 1
+```
+
+Other BFDBs:
+
+```bash
+python3 tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 2 --circuit 1
+python3 tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 3 --circuit 1
+```
+
+On Windows PowerShell, use one line and `python` if that is how Python is installed:
+
+```powershell
+python tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 3 --circuit 1
+```
+
+## Modbus mapping
+
+| Unit ID | Logical BFDB |
 |---:|---|
 | 1 | BFDB-01 |
 | 2 | BFDB-02 |
 | 3 | BFDB-03 |
 
-Each circuit uses 8 consecutive 16-bit registers:
+For circuit `c`:
 
 ```text
-base = (circuit - 1) * 8
+base = (c - 1) * 8
 
-base+0..1  Voltage  FLOAT32
-base+2..3  Current  FLOAT32
-base+4..5  Power    FLOAT32
-base+6..7  Energy   FLOAT32
+base+0..1  Voltage
+base+2..3  Current
+base+4..5  Power
+base+6..7  Energy
 ```
-
-Circuit 1 occupies offsets 0-7; circuit 96 occupies 760-767.
 
 Current PoC baseline:
 
 - read-only;
 - lab port `1502`;
 - production port proposal `502`;
-- FC04 Input Registers baseline, pending Metasys confirmation;
+- FC04 baseline pending final Metasys confirmation;
 - IEEE-754 FLOAT32;
-- high-word-first / big-endian baseline, pending commissioning confirmation.
+- high-word-first / big-endian baseline pending commissioning.
 
-See [ICD](docs/ICD.md) and [Modbus documentation](docs/06-modbus/).
+---
 
-## Current evidence
+# Option B — Authenticated MQTT + remote Pinggy access
 
-Validated on 2026-09-25:
-
-- all three emulator topics continuously publish and are consumed by the gateway;
-- TimescaleDB contains persisted telemetry for the three BFDB domains;
-- Modbus TCP reads V/I/P/E successfully;
-- raw MQTT was independently inspected with `mosquitto_sub`;
-- a real state-only partial update was observed in the emulator stream;
-- an external MQTT Explorer connected through a public TCP tunnel and received all three topic families.
-
-Evidence and limitations are recorded in [lab-validation-2026-09-25.md](docs/01-evidence/lab-validation-2026-09-25.md).
-
-## Status: what is done vs what is not
+Use this flow when someone else must open **their own MQTT Explorer** and observe your running emulator over the Internet.
 
 ```mermaid
 flowchart LR
-    D0["Contracts / docs"] --> B1["Repo + containers"]
-    B1 --> B2["Broker + emulator"]
-    B2 --> B3["RAW MQTT inspection"]
-    B3 --> B4["Parser + partial merge"]
-    B4 --> B5["Latest State + quality"]
-    B5 --> B6["Timescale persistence"]
-    B6 --> B7["Modbus projection"]
-    B7 --> B8["3 × 96 scale"]
-    B8 --> B9["Emulated E2E"]
-    B9 --> B10["Real hardware substitution"]
-    B10 --> B11["Metasys commissioning"]
+    EMU["Field Emulator"] --> MQTT["Mosquitto :1883"]
+    MQTT --> TUN["Pinggy reverse TCP tunnel"]
+    TUN --> PUB["Public host : random port"]
+    PUB --> REVIEWER["Remote MQTT Explorer"]
 ```
 
-Automated/emulated coverage is strong through B9. B10 and B11 remain open. Failure-scenario certification and one TSDB historical-semantics correction also remain open.
+## 1. Generate the MQTT credentials
 
-See [Project status](docs/00-project/STATUS.md).
-
-## Quick start — local lab
-
-### Prerequisites
-
-- Docker + Docker Compose;
-- Python 3 for the local Modbus reader if executed outside the container stack.
-
-Start:
+Canonical command:
 
 ```bash
-cp .env.example .env
-docker compose up --build
+make remote-setup
 ```
 
-Default lab ports:
-
-| Service | Port |
-|---|---:|
-| MQTT / Mosquitto | 1883 |
-| PostgreSQL / TimescaleDB | 5432 |
-| Modbus TCP lab | 1502 |
-
-### Observe RAW MQTT
-
-Local anonymous lab profile:
+Equivalent:
 
 ```bash
-docker run --rm -it \
-  --network bfdb-telemetry-gateway_default \
-  eclipse-mosquitto:2.0 \
-  mosquitto_sub \
-  -h mosquitto \
-  -p 1883 \
-  -t 'data/dev/#' \
-  -v
+bash scripts/setup-remote-review.sh
 ```
 
-### Query historical telemetry
-
-```bash
-docker compose exec timescaledb \
-  psql -U bfdb -d bfdb \
-  -c "SELECT observed_at,bfdb_id,circuit_id,voltage_v,current_a,power_w,energy_kwh
-      FROM telemetry_samples
-      ORDER BY observed_at DESC
-      LIMIT 20;"
-```
-
-### Read Modbus
-
-Linux/WSL:
-
-```bash
-python3 tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 1 --circuit 1
-```
-
-Windows PowerShell:
-
-```powershell
-python tools/modbus-reader/read.py --host 127.0.0.1 --port 1502 --unit 1 --circuit 1
-```
-
-## Secure remote MQTT review
-
-For remote reviewers, use the authenticated broker profile. It creates separate MQTT identities:
-
-- `bfdb-emulator`: publish-only to `data/dev/#`;
-- `bfdb-gateway`: read-only from `data/dev/#`;
-- `bfdb-reviewer`: read-only from `data/dev/#`.
-
-Generate local secrets:
+The historical command still works for compatibility:
 
 ```bash
 bash scripts/setup-ngrok-review.sh
 ```
 
-Then:
+The setup creates:
+
+```text
+.env.remote
+infra/mosquitto/secrets/passwd
+```
+
+Both are ignored by Git.
+
+Three broker identities are created:
+
+| Username | Permission |
+|---|---|
+| `bfdb-emulator` | publish `data/dev/#` |
+| `bfdb-gateway` | read `data/dev/#` |
+| `bfdb-reviewer` | read-only `data/dev/#` |
+
+The setup prints the reviewer password directly in the terminal.
+
+## 2. How to recover the reviewer password later
+
+Recommended helper:
+
+```bash
+make remote-creds
+```
+
+It prints only what the reviewer needs:
+
+```text
+Username: bfdb-reviewer
+Password: <current reviewer password>
+Topic:    data/dev/#
+```
+
+Directly from the env file:
+
+```bash
+grep MQTT_REVIEWER_PASSWORD .env.remote
+```
+
+Example:
+
+```text
+MQTT_REVIEWER_PASSWORD=xxxxxxxxxxxxxxxx
+```
+
+That value is the MQTT Explorer password.
+
+To inspect all generated local credentials:
+
+```bash
+cat .env.remote
+```
+
+Do **not** send the whole file to the reviewer. Share only the `bfdb-reviewer` credentials.
+
+## 3. Start the authenticated stack
+
+Recommended:
+
+```bash
+make remote-up
+```
+
+Equivalent:
 
 ```bash
 docker compose --env-file .env.remote \
@@ -277,58 +506,436 @@ docker compose --env-file .env.remote \
   up -d --build
 ```
 
-The current documented free external TCP review path uses an ephemeral Pinggy reverse TCP tunnel. Full instructions, alternatives, security constraints, and the meaning of the public random port are in [Remote MQTT access](docs/08-commissioning/remote-mqtt-access.md).
+Check status:
 
-**Do not expose TimescaleDB or Modbus TCP to the public Internet for this review flow.**
+```bash
+make remote-ps
+```
 
-## Repository layout
+Follow logs:
+
+```bash
+make remote-logs
+```
+
+Watch RAW MQTT locally while using the authenticated profile:
+
+```bash
+make raw
+```
+
+Because `.env.remote` exists, the RAW observer automatically uses the `bfdb-reviewer` credentials.
+
+## 4. Start Pinggy
+
+Open a **second terminal** and run:
+
+```bash
+make pinggy
+```
+
+Equivalent:
+
+```bash
+ssh -p 443 -R0:127.0.0.1:1883 tcp@free.pinggy.io
+```
+
+Keep that terminal open.
+
+Pinggy returns an endpoint similar to:
+
+```text
+tcp://smaku-38-25-51-24.run.pinggy-free.link:36775
+```
+
+The hostname and port are temporary.
+
+### Why is the public port something like 36775 instead of 1883?
+
+The Pinggy command contains:
+
+```text
+-R0:127.0.0.1:1883
+  ^
+  0 = allocate any available remote port
+```
+
+So the route is:
+
+```text
+Remote MQTT Explorer
+        |
+        | mqtt://public-host:36775
+        v
+      Pinggy
+        |
+        | reverse TCP tunnel
+        v
+127.0.0.1:1883
+        |
+        v
+    Mosquitto
+```
+
+Mosquitto still listens locally on `1883`. The random public port belongs only to that Pinggy session.
+
+The tested unauthenticated free Pinggy session reports a 60-minute expiration. A new session can return a different host and port.
+
+## 5. Configure MQTT Explorer
+
+If Pinggy gives:
+
+```text
+tcp://smaku-38-25-51-24.run.pinggy-free.link:36775
+```
+
+use:
+
+```text
+Protocol: mqtt://
+Host: smaku-38-25-51-24.run.pinggy-free.link
+Port: 36775
+
+Username: bfdb-reviewer
+Password: <value printed by make remote-creds>
+
+SSL/TLS: OFF
+Path: empty
+```
+
+Subscribe to:
+
+```text
+data/dev/#
+```
+
+Do **not** configure:
+
+```text
+wss://
+/mqtt
+```
+
+for this flow. Pinggy is carrying **native MQTT over raw TCP**, not MQTT over WebSocket.
+
+Expected MQTT Explorer tree:
+
+```text
+data
+└── dev
+    ├── EMU-BFDB-01
+    ├── EMU-BFDB-02
+    └── EMU-BFDB-03
+```
+
+## 6. What to verify in MQTT Explorer
+
+Open the `reported` object and confirm that messages evolve over time:
+
+```text
+msgid changes
+timestamp changes
+sendtime changes
+reported batches change
+```
+
+Verify that point IDs respect the current panelized model:
+
+```text
+0_1_1 .. 0_1_24
+0_2_1 .. 0_2_24
+0_3_1 .. 0_3_24
+0_4_1 .. 0_4_24
+```
+
+Regression failure examples:
+
+```text
+0_1_25   <- must not appear
+0_1_49   <- must not appear
+0_1_96   <- must not appear
+```
+
+---
+
+# End-to-end manual validation
+
+A useful complete manual run is:
+
+```text
+1. make remote-up
+2. make raw
+3. MQTT Explorer through Pinggy
+4. make tsdb
+5. make modbus
+```
+
+For a deterministic same-circuit comparison, temporarily stop the changing source:
+
+```bash
+docker compose pause field-emulator
+```
+
+Then compare:
+
+```text
+MQTT raw point
+   ↓
+logical circuit
+   ↓
+Timescale row
+   ↓
+Modbus Unit ID / circuit
+```
+
+Resume:
+
+```bash
+docker compose unpause field-emulator
+```
+
+If the pause exceeds the freshness threshold, quality may become STALE while the last-known numeric values remain.
+
+---
+
+# Tests
+
+Run unit tests:
+
+```bash
+make test
+```
+
+or:
+
+```bash
+python3 -m pytest -q
+```
+
+Important regression coverage includes:
+
+- electrical coherence;
+- energy accumulation;
+- explicit zero vs missing;
+- partial merge;
+- out-of-order protection;
+- FLOAT32 encoding;
+- Modbus register boundaries;
+- corrected panelized identity boundaries;
+- rejection of `0_1_25` and `0_1_96`;
+- inverse mapping from raw point id to logical circuit.
+
+GitHub Actions runs:
+
+- **CI**;
+- **Integration Smoke**.
+
+---
+
+# Stop / reset
+
+Stop the normal local stack:
+
+```bash
+make down
+```
+
+Stop the authenticated remote-review stack:
+
+```bash
+make remote-down
+```
+
+Stop Pinggy:
+
+```text
+Ctrl+C
+```
+
+The public endpoint immediately stops working.
+
+To rotate reviewer credentials:
+
+```bash
+make remote-setup
+make remote-up
+```
+
+This replaces the generated password file and `.env.remote`.
+
+To fully remove local volumes/data for a clean lab reset:
+
+```bash
+docker compose down -v
+```
+
+Use `-v` only when you intentionally want to remove local Timescale/Mosquitto volumes.
+
+---
+
+# Troubleshooting quick reference
+
+### `.env.remote` does not exist
+
+```bash
+make remote-setup
+```
+
+### Forgot reviewer password
+
+```bash
+make remote-creds
+```
+
+or:
+
+```bash
+grep MQTT_REVIEWER_PASSWORD .env.remote
+```
+
+### MQTT Explorer cannot connect through Pinggy
+
+Check:
+
+1. Pinggy terminal is still open;
+2. host and port are from the **current** Pinggy session;
+3. protocol is `mqtt://`;
+4. SSL/TLS is OFF for this lab flow;
+5. Path is empty;
+6. username is `bfdb-reviewer`;
+7. password matches `.env.remote`.
+
+### Docker Compose says MQTT password variables are unset
+
+Use the remote env file:
+
+```bash
+docker compose --env-file .env.remote \
+  -f docker-compose.yml \
+  -f docker-compose.remote.yml \
+  ps
+```
+
+or simply:
+
+```bash
+make remote-ps
+```
+
+### WSL says `python: command not found`
+
+Use:
+
+```bash
+python3
+```
+
+### Windows checkout breaks shell scripts with `pipefail`
+
+The repository has `.gitattributes` forcing LF, but an old checkout can be repaired with:
+
+```bash
+sed -i 's/\r$//' scripts/*.sh
+```
+
+### I see `0_1_96`
+
+That means you are not running the corrected emulator code.
+
+The current expected identity is bounded to 24 positions per group. Rebuild the current revision:
+
+```bash
+docker compose down
+docker compose build --no-cache field-emulator telemetry-gateway
+docker compose up -d
+```
+
+For the authenticated profile, use:
+
+```bash
+make remote-down
+make remote-up
+```
+
+---
+
+# Repository structure
 
 ```text
 apps/
-├── field-emulator/        synthetic BFDB MQTT source
-└── telemetry-gateway/     MQTT -> state/history/Modbus
-config/                    device, emulator, quality, Modbus configuration
-db/                        Timescale schema and queries
-docs/                      contracts, architecture, tests, operations, commissioning
-infra/mosquitto/           local and authenticated broker profiles
-scripts/                   CI smoke and remote-review setup
-tests/                     unit tests
-tools/
-├── modbus-reader/         direct Modbus TCP verification
-└── tsdb-inspector/        historical verification
+├── field-emulator/
+│   ├── electrical/         electrical fleet + panelized point-id encoder
+│   ├── mqtt/               publisher
+│   └── main.py
+│
+└── telemetry-gateway/
+    ├── mqtt/               subscriber
+    ├── parser/             wire parsing
+    ├── normalizer/         identity + canonical telemetry
+    ├── state/              Latest State
+    ├── quality/            stale/validity
+    ├── timeseries/         Timescale persistence
+    └── modbus/             register image + TCP server
+
+config/                     devices, emulator, Modbus, quality
+db/                         Timescale schema/queries
+docs/                       architecture, contracts, evidence, testing, operations
+infra/mosquitto/            broker configs + ACL
+scripts/                    startup, review, smoke and inspection helpers
+tests/                      unit tests
+tools/modbus-reader/        direct Modbus verification
+tools/tsdb-inspector/       historical inspection
 ```
 
-Start with the [documentation index](docs/README.md).
+Documentation index:
 
-## Status taxonomy
+[docs/README.md](docs/README.md)
 
-Documentation uses these labels:
+Important documents:
 
-- **VERIFIED** — backed by specification/manual or repeatable verified system behavior;
-- **OBSERVED** — directly seen in captures, logs, MQTT or lab execution;
-- **DECISION** — architecture/product decision;
-- **INFERENCE** — plausible interpretation not yet proven;
-- **TBD** — requires field evidence or integrator confirmation.
+- [Project status](docs/00-project/STATUS.md)
+- [System architecture](docs/02-architecture/system-overview.md)
+- [MQTT wire contract](docs/03-contracts/mqtt-wire-contract.md)
+- [Identity mapping contract](docs/03-contracts/identity-mapping-contract.md)
+- [Panelized identity correction](docs/01-evidence/panelized-identity-correction-2026-09-28.md)
+- [Lab runbook](docs/08-commissioning/lab-runbook.md)
+- [Remote MQTT / Pinggy runbook](docs/08-commissioning/remote-mqtt-access.md)
+- [Metasys ICD](docs/ICD.md)
 
-This is especially important around real physical identity mapping. The emulator's `0_1_n -> circuit n` mapping is synthetic and **must not be treated as proof of the real device mapping**.
+---
 
-## Known open items
+# Known boundaries / not yet production-complete
 
-The repository intentionally documents unresolved items rather than hiding them:
+The repository intentionally keeps unresolved facts visible:
 
-- real serial -> BFDB mapping;
-- real raw point -> physical circuit mapping;
-- meaning of `0_1_n` vs `0_2_n` and U2/I2/P2/EP2;
-- actual field QoS/session/reconnect behavior;
-- TSDB partial-electrical observation semantics need refinement so carried-forward values are not falsely timestamped as newly observed;
-- `sendtime` is parsed but not yet persisted as its own TSDB column;
-- negative/failure scenarios exist in design but are not all executable/certified yet;
-- database outage durability is not yet production-grade;
-- health/metrics endpoints are not yet implemented;
-- Metasys FC03/FC04, word order, polling, retries, stale policy and production network parameters remain commissioning TBDs.
+- real AWT serial -> BFDB mapping;
+- real raw MQTT point -> physical circuit mapping;
+- exact real frame-B group namespace;
+- final U1/U2 and I1/I2/P1/P2/EP1/EP2 physical interpretation;
+- real field publish cadence/QoS/session/reconnect behavior;
+- TSDB partial-electrical observation semantics correction;
+- explicit `sendtime_at` persistence;
+- durable replay across DB outage;
+- production health/metrics;
+- production TLS/secrets/network design;
+- Metasys FC03/FC04, word order, polling, retry and stale policy;
+- real AMC/AWT field substitution.
 
-## Safety boundary
+The current remote Pinggy flow is a **temporary PoC review mechanism**, not production ingress.
 
-This repository is currently a PoC/lab implementation. The local anonymous broker profile exists only for local development. The authenticated remote-review profile is safer, but plain MQTT over an ephemeral TCP tunnel is still **not** the final production security design.
+Never expose through this lab tunnel:
 
-Production hardening requires TLS/authentication, OT/IT segmentation, secrets management, observability, durable failure handling, and field commissioning.
+- PostgreSQL / TimescaleDB `5432`;
+- Modbus `1502` or `502`;
+- Docker daemon;
+- SSH/admin interfaces.
+
+For the external reviewer, share only:
+
+```text
+Pinggy host
+Pinggy port
+Username: bfdb-reviewer
+Reviewer password
+Topic: data/dev/#
+```

@@ -1,73 +1,138 @@
-# Remote MQTT Access — Direct TCP Review
+# Remote MQTT Access — Pinggy + MQTT Explorer
 
 ## Goal
 
-Allow another person to use **their own MQTT client / MQTT Explorer Desktop** to receive the exact broker data produced by the BFDB emulator.
+Allow another person to use **their own MQTT client / MQTT Explorer Desktop** and receive the exact MQTT telemetry published by the BFDB emulator.
 
-This is different from publishing a web UI. The reviewer must reach the MQTT broker over TCP.
+This is a direct MQTT TCP review path. It is not a web dashboard.
 
 ```mermaid
 flowchart LR
     EMU["Field Emulator"] -->|"MQTT"| MOSQ["Mosquitto :1883"]
-    MOSQ -->|"127.0.0.1:1883"| TUN["Ephemeral reverse TCP tunnel"]
-    TUN -->|"public host:random-port"| NET["Internet"]
-    NET --> MX["Reviewer MQTT Explorer"]
+    MOSQ -->|"reverse TCP"| PINGGY["Pinggy"]
+    PINGGY -->|"public host : random port"| REVIEWER["Remote MQTT Explorer"]
+```
+
+## Fast path
+
+From the repository root:
+
+```bash
+make remote-setup
+make remote-up
+make remote-creds
+```
+
+Then in a second terminal:
+
+```bash
+make pinggy
+```
+
+Pinggy prints a temporary endpoint such as:
+
+```text
+tcp://example.run.pinggy-free.link:36775
+```
+
+Configure MQTT Explorer:
+
+```text
+Protocol: mqtt://
+Host: example.run.pinggy-free.link
+Port: 36775
+
+Username: bfdb-reviewer
+Password: <value printed by make remote-creds>
+
+SSL/TLS: OFF
+Path: empty
+Topic: data/dev/#
 ```
 
 ## Security model
 
-Use the authenticated remote profile, not the anonymous local lab broker.
-
-Accounts:
+The authenticated profile creates three broker accounts:
 
 | Account | Permission |
 |---|---|
-| `bfdb-emulator` | publish to `data/dev/#` |
+| `bfdb-emulator` | publish `data/dev/#` |
 | `bfdb-gateway` | read `data/dev/#` |
-| `bfdb-reviewer` | read `data/dev/#` |
+| `bfdb-reviewer` | read-only `data/dev/#` |
 
-The reviewer account must not publish telemetry.
+Only the reviewer credential should be shared externally.
 
-### Secrets that must never be shared
+Never share:
 
 - emulator password;
 - gateway password;
 - `.env.remote`;
 - Mosquitto password file;
-- any provider account token/authtoken;
 - repository credentials.
 
-Only share the reviewer MQTT username/password and the temporary public host/port.
+## Step 1 — generate or rotate credentials
 
-## 1. Generate MQTT credentials
+Recommended:
 
-From WSL/Linux:
+```bash
+make remote-setup
+```
+
+Equivalent:
+
+```bash
+bash scripts/setup-remote-review.sh
+```
+
+Backward-compatible historical command:
 
 ```bash
 bash scripts/setup-ngrok-review.sh
 ```
 
-Despite the historical script name, it generates **broker credentials** and is not tied to ngrok.
-
-It creates:
+The setup creates:
 
 ```text
 .env.remote
 infra/mosquitto/secrets/passwd
 ```
 
-Both paths are ignored by Git.
+Both are ignored by Git.
 
-If Windows checkout line endings break the shell script:
+The script prints:
 
-```bash
-sed -i 's/\r$//' scripts/setup-ngrok-review.sh
-bash scripts/setup-ngrok-review.sh
+```text
+Reviewer username: bfdb-reviewer
+Reviewer password: <generated password>
 ```
 
-The repository includes `.gitattributes` to force LF line endings for shell scripts.
+## Step 2 — recover the password later
 
-## 2. Start the authenticated broker profile
+Recommended:
+
+```bash
+make remote-creds
+```
+
+Direct file lookup:
+
+```bash
+grep MQTT_REVIEWER_PASSWORD .env.remote
+```
+
+The value after `=` is the password used by MQTT Explorer.
+
+Do not send the entire `.env.remote` file to a reviewer.
+
+## Step 3 — start the authenticated stack
+
+Recommended:
+
+```bash
+make remote-up
+```
+
+Equivalent:
 
 ```bash
 docker compose --env-file .env.remote \
@@ -76,41 +141,36 @@ docker compose --env-file .env.remote \
   up -d --build
 ```
 
-Always include `--env-file .env.remote` with the remote compose profile. Otherwise Docker Compose will warn that MQTT password variables are unset.
-
-Verify:
+Check:
 
 ```bash
-docker compose --env-file .env.remote \
-  -f docker-compose.yml \
-  -f docker-compose.remote.yml \
-  ps
+make remote-ps
 ```
 
-## 3. Verify locally before exposing anything
+Expected running services:
 
-Load the generated variables into the shell:
+```text
+mosquitto
+timescaledb
+telemetry-gateway
+field-emulator
+```
+
+Follow logs:
 
 ```bash
-set -a
-source .env.remote
-set +a
+make remote-logs
 ```
 
-Subscribe directly inside the Docker network:
+## Step 4 — verify RAW MQTT locally
+
+Recommended:
 
 ```bash
-docker run --rm -it \
-  --network bfdb-telemetry-gateway_default \
-  eclipse-mosquitto:2.0 \
-  mosquitto_sub \
-  -h mosquitto \
-  -p 1883 \
-  -u bfdb-reviewer \
-  -P "$MQTT_REVIEWER_PASSWORD" \
-  -t 'data/dev/#' \
-  -v
+make raw
 ```
+
+The helper automatically discovers the Compose Docker network and detects whether the authenticated or anonymous broker profile is running.
 
 Expected topics:
 
@@ -120,36 +180,53 @@ data/dev/EMU-BFDB-02
 data/dev/EMU-BFDB-03
 ```
 
-## 4. Full-free lab path used on 2026-09-25: Pinggy TCP
+Expected corrected raw point families across successive batches:
 
-Start an unauthenticated free reverse TCP tunnel:
+```text
+0_1_1 .. 0_1_24
+0_2_1 .. 0_2_24
+0_3_1 .. 0_3_24
+0_4_1 .. 0_4_24
+```
+
+The following are regression failures:
+
+```text
+0_1_25
+0_1_49
+0_1_96
+```
+
+## Step 5 — open Pinggy
+
+In a second terminal:
+
+```bash
+make pinggy
+```
+
+Equivalent raw command:
 
 ```bash
 ssh -p 443 -R0:127.0.0.1:1883 tcp@free.pinggy.io
 ```
 
-The service returns an endpoint similar to:
+Keep this terminal open while the reviewer is connected.
 
-```text
-tcp://example.run.pinggy-free.link:36771
-```
-
-The exact hostname and port are temporary.
-
-### Why is the public port not 1883?
+## Why is the Pinggy public port not 1883?
 
 The command uses:
 
 ```text
 -R0:127.0.0.1:1883
   ^
-  0 = request any available remote port
+  0 = ask Pinggy for any available remote port
 ```
 
-So the mapping is:
+Example:
 
 ```text
-public-host:36771
+public-host:36775
         |
         | reverse TCP tunnel
         v
@@ -159,58 +236,52 @@ public-host:36771
 Mosquitto
 ```
 
-The broker still listens locally on port 1883. `36771` was only the public port randomly allocated for one tunnel session.
+Mosquitto still listens locally on 1883.
 
-A new tunnel may receive a different host and port.
+The public port is temporary transport assigned by Pinggy for that one tunnel session.
 
-### Observed free-tier behavior
+## Step 6 — configure MQTT Explorer
 
-During the 2026-09-25 lab session, the unauthenticated free tunnel explicitly reported:
-
-```text
-Your tunnel will expire in 60 minutes.
-```
-
-Treat the endpoint as ephemeral and disposable.
-
-## 5. Reviewer MQTT Explorer configuration
-
-For an endpoint:
+If Pinggy prints:
 
 ```text
-tcp://example.run.pinggy-free.link:36771
+tcp://smaku-38-25-51-24.run.pinggy-free.link:36775
 ```
 
-configure MQTT Explorer as:
+MQTT Explorer:
 
 ```text
 Protocol: mqtt://
-Host:     example.run.pinggy-free.link
-Port:     36771
+Host: smaku-38-25-51-24.run.pinggy-free.link
+Port: 36775
+Client ID: any unique value
 
 Username: bfdb-reviewer
-Password: <MQTT_REVIEWER_PASSWORD>
+Password: <make remote-creds>
 
 SSL/TLS: OFF
-Path:    empty / not applicable
+Clean Session: ON
+Path: empty
 ```
 
-Do **not** select:
+Subscribe:
+
+```text
+data/dev/#
+```
+
+Do not use:
 
 ```text
 wss://
 Path /mqtt
 ```
 
-because this tunnel is raw TCP carrying native MQTT, not MQTT-over-WebSocket.
+for this flow because Pinggy is carrying native MQTT TCP, not MQTT-over-WebSocket.
 
-Subscribe to:
+## Step 7 — what the reviewer should see
 
-```text
-data/dev/#
-```
-
-Expected topic tree:
+Topic tree:
 
 ```text
 data
@@ -220,59 +291,115 @@ data
     └── EMU-BFDB-03
 ```
 
-## 6. Stop access
+Messages should change continuously:
 
-Stop the tunnel session:
+- `msgid`;
+- `timestamp`;
+- `sendtime`;
+- `reported` point batch;
+- V/I/P/E values.
+
+The corrected emulator should never expose one panel as `0_1_1..96`.
+
+## Step 8 — historical and Modbus verification
+
+In another terminal:
+
+```bash
+make tsdb
+```
+
+and:
+
+```bash
+make modbus
+```
+
+This verifies the same running system through three different surfaces:
+
+```text
+RAW MQTT
+  |
+  +--> TimescaleDB history
+  |
+  +--> Latest State --> Modbus TCP
+```
+
+## Step 9 — stop access
+
+Stop Pinggy:
 
 ```text
 Ctrl+C
 ```
 
-The public endpoint becomes unusable.
+Stop the authenticated stack:
 
-If reviewer credentials should be rotated, rerun the credential-generation script and restart the authenticated compose profile.
+```bash
+make remote-down
+```
 
-## Alternatives evaluated
+To rotate credentials before a later review:
 
-### ngrok TCP
+```bash
+make remote-setup
+make remote-up
+```
 
-In the 2026-09-25 lab account, `ngrok tcp 1883` returned `ERR_NGROK_8013` and required adding a credit/debit card before free-account TCP endpoints could be used.
+## Free-tier behavior observed during lab
 
-This is why the lab switched to Pinggy for a no-card test.
+The tested unauthenticated Pinggy session explicitly reported:
 
-### Cloudflare Quick Tunnel
+```text
+Your tunnel will expire in 60 minutes.
+```
 
-A Quick Tunnel successfully produced an HTTPS `trycloudflare.com` URL for a local HTTP service, but that does **not** give a remote MQTT Explorer a native raw TCP MQTT endpoint.
+Treat the host and public port as ephemeral.
 
-It is useful when sharing a web application, not for the direct MQTT Desktop-client requirement used in this test.
+## Why not ngrok?
 
-### Private overlay network
+During the earlier lab session, the tested free ngrok account returned:
 
-A private overlay such as Tailscale is another option when both parties can install a client. It avoids a public broker endpoint but changes the reviewer setup model.
+```text
+ERR_NGROK_8013
+```
 
-## Security limitations
+and required credit/debit-card verification for TCP endpoints.
 
-The current lab remote path is:
+The current no-card lab path therefore uses Pinggy.
+
+## Why not Cloudflare Quick Tunnel?
+
+A Cloudflare Quick Tunnel successfully exposed HTTP, but that does not satisfy the direct native MQTT TCP requirement for a desktop MQTT client.
+
+## Production boundary
+
+The lab path is:
 
 ```text
 native MQTT
 + username/password
 + broker ACL
-+ ephemeral public TCP tunnel
++ temporary public TCP tunnel
 ```
 
-It is **not** the final production security design.
+This is **not** the production security design.
 
-Plain MQTT on this path does not provide application-layer TLS between reviewer and broker. Production must use a deliberately approved encrypted design such as MQTTS/TLS and the required OT/IT network controls.
+Production requires an approved encrypted/segmented design such as MQTTS/TLS plus the required OT/IT network controls.
 
-## Never expose for this review
+Never expose through this review tunnel:
 
-Do not tunnel:
-
-- PostgreSQL / TimescaleDB `5432`;
+- TimescaleDB/PostgreSQL `5432`;
 - Modbus TCP `1502` or `502`;
 - Docker daemon;
-- SSH to the host;
-- any secrets-management surface.
+- SSH/admin interfaces.
 
-The remote review requirement is only to observe MQTT telemetry.
+Share externally only:
+
+```text
+Pinggy public host
+Pinggy public port
+Username: bfdb-reviewer
+Reviewer password
+Topic: data/dev/#
+```
