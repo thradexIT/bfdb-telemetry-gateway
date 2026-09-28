@@ -7,6 +7,7 @@ publish:
   topicTemplate: "data/dev/{serial}"
 electrical:
   circuitsPerBfdb: 96
+  positionsPerPanel: 24
   voltageNoise: 0.03
   currentMaxStep: 0.35
   loadStepProbability: 0.015
