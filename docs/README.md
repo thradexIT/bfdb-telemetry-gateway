@@ -15,7 +15,8 @@ This directory is the source of truth for BFDB Telemetry Gateway architecture, c
 9. [Test Strategy](07-testing/test-strategy.md)
 10. [Lab Runbook](08-commissioning/lab-runbook.md)
 11. [Remote MQTT Access](08-commissioning/remote-mqtt-access.md)
-12. [Lab Evidence 2026-09-25](01-evidence/lab-validation-2026-09-25.md)
+12. [Panelized Identity Correction 2026-09-28](01-evidence/panelized-identity-correction-2026-09-28.md)
+13. [Lab Evidence 2026-09-25](01-evidence/lab-validation-2026-09-25.md)
 
 ## Directory map
 
