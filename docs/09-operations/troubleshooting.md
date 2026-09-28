@@ -19,17 +19,10 @@ Then verify:
 Direct broker test:
 
 ```bash
-docker run --rm -it \
-  --network bfdb-telemetry-gateway_default \
-  eclipse-mosquitto:2.0 \
-  mosquitto_sub \
-  -h mosquitto \
-  -p 1883 \
-  -t 'data/dev/#' \
-  -v
+make raw
 ```
 
-For authenticated review, add `-u` and `-P`.
+The helper discovers the current Compose network and automatically uses the reviewer credential when the authenticated broker profile is active.
 
 ## Remote MQTT Explorer cannot connect
 
@@ -186,6 +179,53 @@ The repository now includes:
 ```
 
 in `.gitattributes`.
+
+## I forgot the MQTT reviewer password
+
+Use:
+
+```bash
+make remote-creds
+```
+
+or:
+
+```bash
+grep MQTT_REVIEWER_PASSWORD .env.remote
+```
+
+If `.env.remote` does not exist, generate/rotate credentials:
+
+```bash
+make remote-setup
+```
+
+## I still see `0_1_96`
+
+That is the superseded flat-identity emulator.
+
+Current expected groups are:
+
+```text
+0_1_1..0_1_24
+0_2_1..0_2_24
+0_3_1..0_3_24
+0_4_1..0_4_24
+```
+
+Rebuild the current revision:
+
+```bash
+make remote-down
+make remote-up
+```
+
+or for the local anonymous lab:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
 
 ## Docker Compose warns MQTT password variables are blank
 
