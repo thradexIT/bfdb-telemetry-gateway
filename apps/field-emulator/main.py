@@ -46,6 +46,25 @@ def main():
             f"circuitsPerBfdb={circuits} must be divisible by positionsPerPanel={positions_per_panel}"
         )
 
+    panels_per_bfdb=circuits//positions_per_panel
+
+    for d in devices:
+        ident=d["identity"]
+        if ident["mode"]!="emulator_panelized":
+            raise ValueError(
+                f"emulator requires emulator_panelized identity mode for {d['serial']}"
+            )
+        if int(ident["positionsPerPanel"])!=positions_per_panel:
+            raise ValueError(
+                f"positionsPerPanel mismatch for {d['serial']}: "
+                f"devices={ident['positionsPerPanel']} emulator={positions_per_panel}"
+            )
+        if int(ident["panelsPerBfdb"])!=panels_per_bfdb:
+            raise ValueError(
+                f"panelsPerBfdb mismatch for {d['serial']}: "
+                f"devices={ident['panelsPerBfdb']} emulator={panels_per_bfdb}"
+            )
+
     cursors={d["bfdbId"]:1 for d in devices}
     msgid=1000
     cycle=0
@@ -55,7 +74,7 @@ def main():
         f"EMULATOR_READY devices={len(devices)} "
         f"circuits_per_bfdb={circuits} "
         f"positions_per_panel={positions_per_panel} "
-        f"panels_per_bfdb={circuits//positions_per_panel}",
+        f"panels_per_bfdb={panels_per_bfdb}",
         flush=True,
     )
 
