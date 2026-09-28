@@ -24,7 +24,7 @@ This does **not** mean the field PoC or product is finished.
 
 | Gate | Scope | Status |
 |---|---|---|
-| D0 | Documentation / baseline contracts | ACTIVE / substantially materialized |
+| D0 | Documentation / baseline contracts | DONE for current project stage; all documentation areas GREEN |
 | B1 | Repository + container scaffold | DONE |
 | B2 | MQTT broker + electrical emulator | DONE |
 | B3 | RAW MQTT independent inspection | DONE for emulator, including external client |
@@ -32,10 +32,16 @@ This does **not** mean the field PoC or product is finished.
 | B5 | Latest State + quality/stale | IMPLEMENTED, scenario certification incomplete |
 | B6 | Timescale persistence | IMPLEMENTED, historical partial-patch semantics correction open |
 | B7 | Modbus projection | DONE in lab |
-| B8 | 3 BFDB × 96 circuits | CORRECTED to 4 × 24 panelized raw identities; validation in current PR |
+| B8 | 3 BFDB × 96 circuits | DONE in emulator with corrected 4 × 24 panelized raw identities |
 | B9 | Emulated E2E | DONE in automated smoke; additional negative-path certification open |
 | B10 | Real AMC/AWT hardware substitution | NOT DONE |
 | B11 | Metasys commissioning | NOT DONE |
+
+## Documentation readiness
+
+All documentation areas are GREEN for the current project stage. See [DOCUMENTATION-READINESS.md](DOCUMENTATION-READINESS.md).
+
+This does not modify the truth of field gates B10/B11: documentation is ready to execute those gates, but the real hardware and Metasys evidence still need to be produced.
 
 ## Verified/observed lab outcomes
 
