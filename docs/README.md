@@ -2,6 +2,39 @@
 
 This directory is the source of truth for BFDB Telemetry Gateway architecture, contracts, evidence, testing, commissioning, and operations.
 
+## Operator quick start
+
+From the repository root:
+
+```bash
+make help
+```
+
+Local lab:
+
+```bash
+make up
+make raw
+make tsdb
+make modbus
+```
+
+Authenticated remote review:
+
+```bash
+make remote-setup
+make remote-up
+make remote-creds
+```
+
+Then, in a second terminal:
+
+```bash
+make pinggy
+```
+
+The root [README](../README.md) is the executable operator guide.
+
 ## Recommended reading order
 
 1. [Project Charter](00-project/PROJECT-CHARTER.md)
