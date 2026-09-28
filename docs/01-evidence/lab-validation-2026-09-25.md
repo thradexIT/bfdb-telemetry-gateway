@@ -6,6 +6,8 @@ Environment: local Docker/WSL lab using the BFDB emulator and telemetry gateway.
 
 This document records what was directly observed. It does not promote emulator behavior into proof of real field-device behavior.
 
+> **Identity correction — 2026-09-28:** the emulator version used for this 2026-09-25 evidence still emitted a flat raw-point sequence such as `0_1_25` through `0_1_96`. That representation is now classified as a modeling defect and is **superseded**. The corrected emulator emits four 24-position groups: `0_1_1..24`, `0_2_1..24`, `0_3_1..24`, `0_4_1..24`. The electrical, transport, TSDB and Modbus observations in this document remain historical evidence, but the old flat raw IDs must not be used as the current expected MQTT identity shape.
+
 ## 1. Continuous MQTT TX/RX
 
 The emulator continuously published three topic families and the gateway consumed the corresponding messages.
@@ -86,19 +88,20 @@ MQTT payload = JSON object
 
 The topic is not embedded as a synthetic JSON wrapper.
 
-## 5. 96-circuit rotation
+## 5. 96-circuit rotation — historical pre-correction run
 
-For BFDB-03, sequential messages visibly rotated through batches:
+The 2026-09-25 emulator rotated logical circuit batches of 24, but encoded them incorrectly as flat raw IDs under `0_1_*`.
+
+The corrected expected wire sequence is:
 
 ```text
-25..48
-49..72
-73..96
-1..24
-...
+0_1_1  .. 0_1_24
+0_2_1  .. 0_2_24
+0_3_1  .. 0_3_24
+0_4_1  .. 0_4_24
 ```
 
-The configured batch size is 24, so all 96 synthetic circuit identities are exercised across four publication cycles.
+The logical coverage remains 96 circuits; only the raw MQTT identity representation changed.
 
 ## 6. Electrical coherence
 
@@ -145,6 +148,8 @@ A direct RAW MQTT message was observed where one point contained only:
   "state": "ONLINE"
 }
 ```
+
+The state-only semantic evidence remains useful, but the raw point id shown above came from the superseded flat-identity emulator. In the corrected emulator the equivalent logical Circuit 49 is represented as `0_3_1`.
 
 while other points in the same message contained electrical metrics.
 
