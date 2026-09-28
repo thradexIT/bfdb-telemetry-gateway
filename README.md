@@ -11,6 +11,42 @@ Industrial telemetry gateway PoC for converting asynchronous BFDB electrical tel
 
 ---
 
+## Documentation readiness
+
+Documentation for the current project stage is **all GREEN**. GREEN here means the repository contains a canonical, executable, reviewable document for the area; it does **not** mean that an external field gate has already been executed.
+
+| Area | Documentation status |
+|---|---|
+| Executive explanation | ✅ GREEN |
+| Developer onboarding | ✅ GREEN |
+| Start/run procedure | ✅ GREEN |
+| RAW MQTT / TSDB / Modbus | ✅ GREEN |
+| Pinggy + MQTT Explorer | ✅ GREEN |
+| Credential recovery | ✅ GREEN |
+| Architecture | ✅ GREEN |
+| 4×24 identity model | ✅ GREEN |
+| Historical evidence | ✅ GREEN |
+| Troubleshooting | ✅ GREEN |
+| PoC vs production boundary | ✅ GREEN |
+| Metasys commissioning documentation | ✅ GREEN |
+| Real hardware documentation | ✅ GREEN |
+| Production runbook | ✅ GREEN |
+| SLO / monitoring / DR documentation | ✅ GREEN |
+| Release validation receipt | ✅ GREEN |
+
+Canonical matrix: [Documentation Readiness](docs/00-project/DOCUMENTATION-READINESS.md).
+
+The distinction remains explicit:
+
+```text
+Documentation readiness = GREEN
+Actual Metasys field commissioning = pending
+Actual real-hardware identity proof = pending
+Production promotion = pending
+```
+
+---
+
 ## What this project does
 
 The gateway separates four concerns that must not be coupled:
@@ -901,6 +937,12 @@ Important documents:
 - [Lab runbook](docs/08-commissioning/lab-runbook.md)
 - [Remote MQTT / Pinggy runbook](docs/08-commissioning/remote-mqtt-access.md)
 - [Metasys ICD](docs/ICD.md)
+- [Metasys commissioning runbook](docs/08-commissioning/metasys-commissioning-runbook.md)
+- [Real hardware integration dossier](docs/04-emulator/real-hardware-integration-dossier.md)
+- [Production operations runbook](docs/09-operations/production-runbook.md)
+- [SLO / monitoring / DR baseline](docs/09-operations/slo-monitoring-dr.md)
+- [Release validation receipt](docs/07-testing/release-validation-receipt.md)
+- [Documentation readiness matrix](docs/00-project/DOCUMENTATION-READINESS.md)
 
 ---
 
