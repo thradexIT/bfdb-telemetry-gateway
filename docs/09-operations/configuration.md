@@ -46,7 +46,7 @@ docker compose up --build
 Generate secrets:
 
 ```bash
-bash scripts/setup-ngrok-review.sh
+make remote-setup
 ```
 
 Creates local-only:
@@ -59,10 +59,28 @@ infra/mosquitto/secrets/passwd
 Start:
 
 ```bash
+make remote-up
+```
+
+Equivalent:
+
+```bash
 docker compose --env-file .env.remote \
   -f docker-compose.yml \
   -f docker-compose.remote.yml \
   up -d --build
+```
+
+Recover only the reviewer credentials:
+
+```bash
+make remote-creds
+```
+
+Open the current no-card Pinggy TCP path:
+
+```bash
+make pinggy
 ```
 
 Always pass `--env-file .env.remote` when using the remote overlay.
