@@ -132,3 +132,53 @@ No physical supply-to-panel relationship is assumed by scenario names. The actua
 7. Replacing emulation with Delta requires real IP, SNMPv3 credentials, MIB firmware, OID walk and feed/shunt mapping evidence. **Emulator success is not real-hardware acceptance.**
 
 **Security note:** This read-only lab omits traps and does not provide a production-hardened SNMP agent. Keep it on loopback/private OT-lab networks, never expose to the public Internet.
+
+## Addendum 2026-10-21 · ELTEK_BDCBB_CONFIG_4
+
+The earlier two-feed A/B lab remains the default **GENERIC_2_FEED** profile.
+It is not evidence that a customer's Delta installation has only two inputs.
+Use the independent `ELTEK_BDCBB_CONFIG_4` laboratory profile to model
+**four physical input shunts A1/A2/B1/B2 per BDFB**. Set in `.env.snmp`:
+
+```dotenv
+SNMP_EMULATOR_PROFILE=ELTEK_BDCBB_CONFIG_4
+SNMP_EMULATOR_SCENARIO=NORMAL
+```
+
+The existing optional Compose service definitions and ports 11611/11612/11613
+remain unchanged. They now expose **four CURRENT plus four VOLTAGE
+SNMPv3 scalars per device** (8 independent OIDs, total 24 across three BFDBs).
+
+| Feed identity | Side | CURRENT synthetic OID | VOLTAGE synthetic OID |
+| --- | --- | --- | --- |
+| A1 | A | `1.3.6.1.4.1.8072.9999.2026.49.1.1.0` | `1.3.6.1.4.1.8072.9999.2026.49.2.1.0` |
+| A2 | A | `1.3.6.1.4.1.8072.9999.2026.49.1.2.0` | `1.3.6.1.4.1.8072.9999.2026.49.2.2.0` |
+| B1 | B | `1.3.6.1.4.1.8072.9999.2026.49.1.3.0` | `1.3.6.1.4.1.8072.9999.2026.49.2.3.0` |
+| B2 | B | `1.3.6.1.4.1.8072.9999.2026.49.1.4.0` | `1.3.6.1.4.1.8072.9999.2026.49.2.4.0` |
+
+**Both .48 (legacy) and .49 (Configuration 4) are synthetic test OID
+subtrees, not real Delta/Eltek MIB data.** Raw current and signed voltage
+are in deci-units; the existing Site Mapper Collector must scale
+`0.1` for CURRENT (A) and VOLTAGE (V) and bind each OID to one
+canonical external BDFB input AccessPort. The manufacturer shunt's
+1000 A / 60 mV is a rating, **not** another scaling factor for an
+already-normalized current.
+
+The `NORMAL`, `ZERO_FEED_A`, `HIGH_FEED_B` and `MISSING_FEED_B`
+scenarios are preserved. In Configuration 4, `MISSING_A2` omits only
+A2's instances (not a fabricated zero) and `HIGH_B2` reports 650 A
+on B2, crossing Site Mapper's configurable calculated warning threshold
+(default 640 A). Other shunts continue independently.
+
+This enables true SNMPv3 UDP GET tests of four shunts **after Site Mapper
+has inventoried and confirmed** its four real PANEL mappings and selected
+the `ELTEK_BDCBB_CONFIG_4` profile. No breaker MQTT measurement is
+silently summed into incoming DC current. No field controller IP,
+redundancy, shunt-to-controller index or firmware support is certified
+by this emulation.
+
+Authoritative Site Mapper contracts remain in the existing
+`docs/domain/contracts/v1.2/domain-contract.md`,
+`docs/domain/bdfb-power.md` and
+`docs/telemetry/snmp-feed-ingestion.md`; this appendix only documents
+the separate BFDB lab implementation.

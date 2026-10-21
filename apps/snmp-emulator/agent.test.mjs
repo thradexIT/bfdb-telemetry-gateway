@@ -73,3 +73,54 @@ test('missing feed scenario exposes no B instances',async()=>{
     instance.stop();
   }
 });
+
+test('Configuration 4 answers real SNMPv3 UDP GET for eight independent scalars', async () => {
+  const { CONFIG4_INPUT_FEEDS, ELTEK_BDCBB_CONFIG_4 } = await import('./oid-profile.mjs');
+  const port = 24000 + Math.floor(Math.random() * 18000);
+  const u = user();
+  const conf = {
+    bfdbId: 'BFDB-03', sourceIdentity: 'EMU-DELTA-BFDB-03',
+    profile: ELTEK_BDCBB_CONFIG_4, scenario: 'NORMAL',
+    username: u.name, authKey: u.authKey, privKey: u.privKey,
+    port, host: '127.0.0.1', intervalMs: 1000,
+  };
+  const agent = createReadOnlyAgent(conf);
+  const session = snmp.createV3Session('127.0.0.1', u, { port, timeout: 1400, retries: 1 });
+  try {
+    await sleep(120);
+    const oids = CONFIG4_INPUT_FEEDS.flatMap((f) => [f.currentOid, f.voltageOid]);
+    const result = await query(session, oids);
+    assert.deepEqual(result.map((v) => v.oid), oids);
+    for (let i = 0; i < result.length; i += 2) {
+      assert.ok(result[i].value > 0);
+      assert.ok(result[i+1].value < 0);
+    }
+  } finally {
+    session.close();
+    agent.stop();
+  }
+});
+
+test('Configuration 4 missing A2 shunt is noSuchInstance, never a fabricated zero', async () => {
+  const { CONFIG4_INPUT_FEEDS, ELTEK_BDCBB_CONFIG_4 } = await import('./oid-profile.mjs');
+  const port = 24000 + Math.floor(Math.random() * 18000);
+  const u = user();
+  const agent = createReadOnlyAgent({
+    bfdbId: 'BFDB-02', sourceIdentity: 'EMU-DELTA-BFDB-02',
+    profile: ELTEK_BDCBB_CONFIG_4, scenario: 'MISSING_A2',
+    username: u.name, authKey: u.authKey, privKey: u.privKey,
+    port, host: '127.0.0.1', intervalMs: 1000,
+  });
+  const session = snmp.createV3Session('127.0.0.1', u, { port, timeout: 1000, retries: 0 });
+  try {
+    await sleep(120);
+    assert.ok((await query(session, [CONFIG4_INPUT_FEEDS[0].currentOid]))[0].value > 0);
+    const missing = await new Promise((resolve) => session.get(
+      [CONFIG4_INPUT_FEEDS[1].currentOid], (error, values) => resolve({ error, values }),
+    ));
+    assert.ok(missing.error || missing.values?.some(snmp.isVarbindError));
+  } finally {
+    session.close();
+    agent.stop();
+  }
+});

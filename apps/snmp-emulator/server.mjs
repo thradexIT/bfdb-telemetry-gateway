@@ -14,6 +14,7 @@ function integer(name, fallback) {
 
 const config = {
   bfdbId: required('SNMP_EMULATOR_BFDB_ID'),
+  profile: process.env.SNMP_EMULATOR_PROFILE || 'GENERIC_2_FEED',
   sourceIdentity: required('SNMP_EMULATOR_SOURCE_ID'),
   scenario: process.env.SNMP_EMULATOR_SCENARIO || 'NORMAL',
   username: required('SNMP_V3_USERNAME'),
@@ -31,7 +32,8 @@ console.info(JSON.stringify({
   sourceIdentity:config.sourceIdentity,
   udpPort:config.port,
   scenario:config.scenario,
-  points:collectorCommissioning(config.sourceIdentity).measurements.map(x=>({oid:x.oid,metric:x.metric,feed:x.feed})),
+  hardwareProfile:config.profile,
+  points:collectorCommissioning(config.sourceIdentity, config.profile).measurements.map(x=>({oid:x.oid,metric:x.metric,feed:x.feed})),
 }));
 for (const signal of ['SIGTERM','SIGINT']) {
   process.on(signal, () => { instance.stop(); process.exit(0); });

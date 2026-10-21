@@ -1,5 +1,5 @@
 import snmp from 'net-snmp';
-import { assertConfig, feedSnapshot, INPUT_FEEDS } from './oid-profile.mjs';
+import { assertConfig, feedSnapshot, inputFeeds, isPublishedFeed } from './oid-profile.mjs';
 
 export function createReadOnlyAgent(config) {
   assertConfig(config);
@@ -25,7 +25,7 @@ export function createReadOnlyAgent(config) {
   authorizer.getAccessControlModel().setUserAccess(user.name, snmp.AccessLevel.ReadOnly);
 
   const mib = agent.getMib();
-  const published = INPUT_FEEDS.filter(feed => config.scenario !== 'MISSING_FEED_B' || feed.id !== 'B');
+  const published = inputFeeds(config.profile).filter((feed) => isPublishedFeed(feed.id, config.scenario));
   for (const feed of published) {
     for (const [metric, oid] of [['current', feed.currentOid], ['voltage', feed.voltageOid]]) {
       const name = `${feed.id}-${metric}`;
@@ -41,7 +41,7 @@ export function createReadOnlyAgent(config) {
 
   const started = performance.now();
   const update = () => {
-    const measurements = feedSnapshot(config.bfdbId, (performance.now() - started) / 1000, config.scenario);
+    const measurements = feedSnapshot(config.bfdbId, (performance.now() - started) / 1000, config.scenario, config.profile);
     for (const feed of published) {
       mib.setScalarValue(`${feed.id}-current`, measurements[feed.id].currentDeciA);
       mib.setScalarValue(`${feed.id}-voltage`, measurements[feed.id].voltageDeciV);
