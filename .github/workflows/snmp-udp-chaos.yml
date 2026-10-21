@@ -1,7 +1,7 @@
 name: BFDB Configuration 4 isolated UDP stress
 on:
   push:
-    branches: [security/config4-udp-chaos-20261021]
+    branches: [main]
   pull_request:
     paths:
       - 'apps/snmp-emulator/**'
