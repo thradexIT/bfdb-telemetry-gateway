@@ -1,0 +1,29 @@
+name: BFDB Configuration 4 isolated UDP stress
+on:
+  push:
+    branches: [security/config4-udp-chaos-20261021]
+  pull_request:
+    paths:
+      - 'apps/snmp-emulator/**'
+      - '.github/workflows/snmp-udp-chaos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  udp-chaos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/snmp-emulator/package-lock.json
+      - run: npm ci --prefix apps/snmp-emulator --no-audit --no-fund
+      - name: Attack three local-only SNMPv3 agents with bounded concurrent GET probes
+        run: node --test apps/snmp-emulator/chaos.test.mjs
+      - name: Verify existing UDP SNMPv3 agent contract
+        run: npm test --prefix apps/snmp-emulator
+      - name: Production SNMP dependency audit
+        run: npm audit --prefix apps/snmp-emulator --omit=dev --audit-level=high
