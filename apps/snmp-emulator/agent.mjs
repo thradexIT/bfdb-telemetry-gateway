@@ -21,8 +21,13 @@ export function createReadOnlyAgent(config) {
     privProtocol: snmp.PrivProtocols.aes,
     privKey: config.privKey,
   };
-  authorizer.addUser(user);
-  authorizer.getAccessControlModel().setUserAccess(user.name, snmp.AccessLevel.ReadOnly);
+  if (config.snmpVersion === '2c') {
+    authorizer.addCommunity(config.community);
+    authorizer.getAccessControlModel().setCommunityAccess(config.community, snmp.AccessLevel.ReadOnly);
+  } else {
+    authorizer.addUser(user);
+    authorizer.getAccessControlModel().setUserAccess(user.name, snmp.AccessLevel.ReadOnly);
+  }
 
   const mib = agent.getMib();
   const published = inputFeeds(config.profile).filter((feed) => isPublishedFeed(feed.id, config.scenario));
