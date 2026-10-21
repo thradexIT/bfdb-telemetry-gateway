@@ -17,9 +17,11 @@ const config = {
   profile: process.env.SNMP_EMULATOR_PROFILE || 'GENERIC_2_FEED',
   sourceIdentity: required('SNMP_EMULATOR_SOURCE_ID'),
   scenario: process.env.SNMP_EMULATOR_SCENARIO || 'NORMAL',
-  username: required('SNMP_V3_USERNAME'),
-  authKey: required('SNMP_V3_AUTH_KEY'),
-  privKey: required('SNMP_V3_PRIV_KEY'),
+  snmpVersion: process.env.SNMP_VERSION || '3',
+  community: process.env.SNMP_COMMUNITY || '',
+  username: process.env.SNMP_V3_USERNAME || '',
+  authKey: process.env.SNMP_V3_AUTH_KEY || '',
+  privKey: process.env.SNMP_V3_PRIV_KEY || '',
   port: integer('SNMP_AGENT_PORT', 1161),
   host: process.env.SNMP_AGENT_HOST || '0.0.0.0',
   intervalMs: integer('SNMP_AGENT_UPDATE_MS', 1000),
@@ -33,6 +35,7 @@ console.info(JSON.stringify({
   udpPort:config.port,
   scenario:config.scenario,
   hardwareProfile:config.profile,
+  snmpVersion:config.snmpVersion,
   points:collectorCommissioning(config.sourceIdentity, config.profile).measurements.map(x=>({oid:x.oid,metric:x.metric,feed:x.feed})),
 }));
 for (const signal of ['SIGTERM','SIGINT']) {
