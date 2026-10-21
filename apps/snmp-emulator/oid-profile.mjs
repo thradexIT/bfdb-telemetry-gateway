@@ -5,6 +5,7 @@
 export const LAB_ROOT = '1.3.6.1.4.1.8072.9999.2026.48';
 export const CONFIG4_LAB_ROOT = '1.3.6.1.4.1.8072.9999.2026.49';
 export const GENERIC_2_FEED = 'GENERIC_2_FEED';
+export const ELTEK_BDCBB_CONFIG_2 = 'ELTEK_BDCBB_CONFIG_2';
 export const ELTEK_BDCBB_CONFIG_4 = 'ELTEK_BDCBB_CONFIG_4';
 
 export const INPUT_FEEDS = Object.freeze([
@@ -28,13 +29,13 @@ const BASE_LOAD = {
 };
 
 export function inputFeeds(profile = GENERIC_2_FEED) {
-  if (profile === GENERIC_2_FEED) return INPUT_FEEDS;
+  if (profile === GENERIC_2_FEED || profile === ELTEK_BDCBB_CONFIG_2) return INPUT_FEEDS;
   if (profile === ELTEK_BDCBB_CONFIG_4) return CONFIG4_INPUT_FEEDS;
   throw new Error('Unsupported SNMP_EMULATOR_PROFILE');
 }
 
 export function assertConfig({
-  bfdbId, sourceIdentity, scenario, username, authKey, privKey, port, intervalMs,
+  bfdbId, sourceIdentity, scenario, username, authKey, privKey, community, snmpVersion = '3', port, intervalMs,
   profile = GENERIC_2_FEED,
 }) {
   inputFeeds(profile);
@@ -44,11 +45,14 @@ export function assertConfig({
   if (!['NORMAL', 'ZERO_FEED_A', 'HIGH_FEED_B', 'MISSING_FEED_B',
     'MISSING_A2', 'HIGH_B2'].includes(scenario))
     throw new Error('Unknown SNMP_EMULATOR_SCENARIO');
-  if (!username || typeof username !== 'string' || !username.trim())
-    throw new Error('SNMP_V3_USERNAME must be configured');
-  if (typeof authKey !== 'string' || authKey.length < 8 ||
-      typeof privKey !== 'string' || privKey.length < 8)
-    throw new Error('SNMPv3 authPriv passphrases must contain at least 8 characters');
+  if (snmpVersion !== '2c' && snmpVersion !== '3')
+    throw new Error('SNMP_VERSION must be 2c or 3');
+  if (snmpVersion === '3' && (!username || typeof username !== 'string' || !username.trim() ||
+      typeof authKey !== 'string' || authKey.length < 8 ||
+      typeof privKey !== 'string' || privKey.length < 8))
+    throw new Error('SNMPv3 authPriv credentials incomplete');
+  if (snmpVersion === '2c' && (!community || typeof community !== 'string' || /[\r\n]/.test(community)))
+    throw new Error('SNMPv2c community must be provided');
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error('SNMP_AGENT_PORT must be between 1024 and 65535');
   if (!Number.isInteger(intervalMs) || intervalMs < 200 || intervalMs > 60_000)

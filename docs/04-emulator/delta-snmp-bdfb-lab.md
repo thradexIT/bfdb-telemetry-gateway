@@ -190,3 +190,43 @@ GitHub Actions [BFDB Configuration 4 isolated UDP stress](https://github.com/thr
 These are bounded CI laboratory checks **not a volumetric denial-of-service exercise**. No real Delta controller, public IP, production database or site management VLAN was contacted. A passing synthetic SNMPv3 agent **does not certify** authentic Delta OIDs, shunt calibration or field cabling.
 
 Site Mapper's separate adversarial run identified ingestion and Collector failure modes; its canonical incident report remains [Site Mapper SNMP audit](https://github.com/em3rc0dTh/AppM-Site-Mapper/blob/main/docs/security/snmp-adversarial-audit-2026-10-21.md). Acknowledged cross-replica atomic durability remains open in [Site Mapper issue #78](https://github.com/em3rc0dTh/AppM-Site-Mapper/issues/78).
+
+## Dual-version and dual-shunt profiles (2026-10-21)
+
+This local emulator can be configured with two **independent** selectors:
+
+| Hardware profile | Physical independent shunts | Synthetic OID subtree |
+| --- | ---: | --- |
+| `ELTEK_BDCBB_CONFIG_2` (or legacy `GENERIC_2_FEED`) | 2: A serving linked panels A1+A2, B serving linked panels B1+B2 | `...2026.48` |
+| `ELTEK_BDCBB_CONFIG_4` | 4: A1, A2, B1, B2 | `...2026.49` |
+
+`SNMP_VERSION=2c` uses a **private read-only community** provided as
+`SNMP_COMMUNITY`; `SNMP_VERSION=3` (the default) retains SNMPv3
+SHA/AES `authPriv` keys. Either transport can query either hardware
+simulation. The emulator serves continuously refreshed synthetic measurements
+but does **not** send unsolicited current packets. Site Mapper's Collector
+queries using periodic SNMP GET and creates time-stamped observations.
+
+Examples for ignored `.env.snmp`:
+
+```dotenv
+SNMP_EMULATOR_PROFILE=ELTEK_BDCBB_CONFIG_2
+SNMP_VERSION=2c
+SNMP_COMMUNITY=<private-readonly-lab-community>
+```
+
+```dotenv
+SNMP_EMULATOR_PROFILE=ELTEK_BDCBB_CONFIG_4
+SNMP_VERSION=3
+SNMP_V3_USERNAME=<private-username>
+SNMP_V3_AUTH_KEY=<private-auth-key>
+SNMP_V3_PRIV_KEY=<private-privacy-key>
+```
+
+Restart the lab through the Site Mapper launcher after a change. Do not
+rely on the displayed four-shunt totals for a physical Config 2 BDFB:
+the number of transmitted OIDs never proves the number of actual shunts.
+SNMPv2c sends its community and measurements in cleartext; use only a
+segregated, restricted management network and source ACLs. Do not use
+`public`, expose these agents beyond localhost, or confuse v2c with
+anonymous broadcasts. Real Delta MIB mappings remain unverified.
