@@ -51,7 +51,7 @@ export function assertConfig({
       typeof authKey !== 'string' || authKey.length < 8 ||
       typeof privKey !== 'string' || privKey.length < 8))
     throw new Error('SNMPv3 authPriv credentials incomplete');
-  if (snmpVersion === '2c' && (!community || typeof community !== 'string' || /[\\r\\n]/.test(community)))
+  if (snmpVersion === '2c' && (!community || typeof community !== 'string' || /[\r\n]/.test(community)))
     throw new Error('SNMPv2c community must be provided');
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error('SNMP_AGENT_PORT must be between 1024 and 65535');
