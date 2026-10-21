@@ -182,3 +182,11 @@ Authoritative Site Mapper contracts remain in the existing
 `docs/domain/bdfb-power.md` and
 `docs/telemetry/snmp-feed-ingestion.md`; this appendix only documents
 the separate BFDB lab implementation.
+
+## Bounded adversarial UDP stress evidence · 2026-10-21
+
+GitHub Actions [BFDB Configuration 4 isolated UDP stress](https://github.com/thradexIT/bfdb-telemetry-gateway/actions/workflows/snmp-udp-chaos.yml) tests three local-only SNMPv3 `authPriv` agents under **60 concurrently scheduled GET rounds** (20 per BFDB) querying all **8 Config4 OIDs** each; validates that the four A1/A2/B1/B2 currents remain nonnegative and voltages remain signed, that the full set of 8 OIDs does not leak across agents, and that SNMP `SET` cannot mutate a current. A separate missing-A2 scenario checks that `noSuchInstance` is not misreported as 0 A. Original SNMPv3 tests, Python unit checks and the existing MQTT/Modbus Docker integration smoke also passed.
+
+These are bounded CI laboratory checks **not a volumetric denial-of-service exercise**. No real Delta controller, public IP, production database or site management VLAN was contacted. A passing synthetic SNMPv3 agent **does not certify** authentic Delta OIDs, shunt calibration or field cabling.
+
+Site Mapper's separate adversarial run identified ingestion and Collector failure modes; its canonical incident report remains [Site Mapper SNMP audit](https://github.com/em3rc0dTh/AppM-Site-Mapper/blob/main/docs/security/snmp-adversarial-audit-2026-10-21.md). Acknowledged cross-replica atomic durability remains open in [Site Mapper issue #78](https://github.com/em3rc0dTh/AppM-Site-Mapper/issues/78).
