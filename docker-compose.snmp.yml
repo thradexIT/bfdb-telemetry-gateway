@@ -1,0 +1,60 @@
+# Optional SNMPv3 agent lab. Does not modify existing MQTT, TSDB or Modbus services.
+# Run: docker compose -f docker-compose.yml -f docker-compose.snmp.yml --profile snmp up -d --build snmp-agent-bfdb-01 snmp-agent-bfdb-02 snmp-agent-bfdb-03
+# Use LOCALHOST-ONLY UDP published ports. Never expose these agents publicly.
+x-snmp-agent-defaults: &snmp-agent-defaults
+  profiles: [snmp]
+  build:
+    context: .
+    dockerfile: apps/snmp-emulator/Dockerfile
+  environment:
+    SNMP_AGENT_HOST: 0.0.0.0
+    SNMP_AGENT_PORT: 1161
+    SNMP_AGENT_UPDATE_MS: ${SNMP_AGENT_UPDATE_MS:-1000}
+    SNMP_EMULATOR_SCENARIO: ${SNMP_EMULATOR_SCENARIO:-NORMAL}
+    SNMP_V3_USERNAME: ${SNMP_V3_USERNAME:?SNMP_V3_USERNAME must be configured in env file}
+    SNMP_V3_AUTH_KEY: ${SNMP_V3_AUTH_KEY:?SNMP_V3_AUTH_KEY must be configured in env file}
+    SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:?SNMP_V3_PRIV_KEY must be configured in env file}
+  restart: unless-stopped
+
+services:
+  snmp-agent-bfdb-01:
+    <<: *snmp-agent-defaults
+    environment:
+      SNMP_AGENT_HOST: 0.0.0.0
+      SNMP_AGENT_PORT: 1161
+      SNMP_AGENT_UPDATE_MS: ${SNMP_AGENT_UPDATE_MS:-1000}
+      SNMP_EMULATOR_SCENARIO: ${SNMP_EMULATOR_SCENARIO:-NORMAL}
+      SNMP_V3_USERNAME: ${SNMP_V3_USERNAME:?required}
+      SNMP_V3_AUTH_KEY: ${SNMP_V3_AUTH_KEY:?required}
+      SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:?required}
+      SNMP_EMULATOR_BFDB_ID: BFDB-01
+      SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-01
+    ports: ["127.0.0.1:11611:1161/udp"]
+
+  snmp-agent-bfdb-02:
+    <<: *snmp-agent-defaults
+    environment:
+      SNMP_AGENT_HOST: 0.0.0.0
+      SNMP_AGENT_PORT: 1161
+      SNMP_AGENT_UPDATE_MS: ${SNMP_AGENT_UPDATE_MS:-1000}
+      SNMP_EMULATOR_SCENARIO: ${SNMP_EMULATOR_SCENARIO:-NORMAL}
+      SNMP_V3_USERNAME: ${SNMP_V3_USERNAME:?required}
+      SNMP_V3_AUTH_KEY: ${SNMP_V3_AUTH_KEY:?required}
+      SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:?required}
+      SNMP_EMULATOR_BFDB_ID: BFDB-02
+      SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-02
+    ports: ["127.0.0.1:11612:1161/udp"]
+
+  snmp-agent-bfdb-03:
+    <<: *snmp-agent-defaults
+    environment:
+      SNMP_AGENT_HOST: 0.0.0.0
+      SNMP_AGENT_PORT: 1161
+      SNMP_AGENT_UPDATE_MS: ${SNMP_AGENT_UPDATE_MS:-1000}
+      SNMP_EMULATOR_SCENARIO: ${SNMP_EMULATOR_SCENARIO:-NORMAL}
+      SNMP_V3_USERNAME: ${SNMP_V3_USERNAME:?required}
+      SNMP_V3_AUTH_KEY: ${SNMP_V3_AUTH_KEY:?required}
+      SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:?required}
+      SNMP_EMULATOR_BFDB_ID: BFDB-03
+      SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-03
+    ports: ["127.0.0.1:11613:1161/udp"]
