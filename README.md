@@ -981,3 +981,22 @@ Username: bfdb-reviewer
 Reviewer password
 Topic: data/dev/#
 ```
+
+---
+
+## Optional Delta/Eltek SNMP BDFB input-feed simulator
+
+A **separate** SNMPv3 `authPriv` read-only agent lab is now available at
+`apps/snmp-emulator` and `docker-compose.snmp.yml`, simulating two independent
+DC incoming feeder currents and voltages per BFDB. This complements the
+existing Acrel/AWT MQTT 96-circuit emulator: **it does not convert the 12–15 V
+breaker samples into the −53 V input-feed currents**.
+
+This agent is used by Site Mapper's already-implemented SNMP Collector.
+The Collector issues actual SNMPv3 UDP GET requests to the emulator and
+passes the same normalized observations to the same Site Mapper endpoint
+used in the later real-Delta integration.
+
+Read [SNMP Emulator → Site Mapper lab and commissioning](docs/04-emulator/delta-snmp-bdfb-lab.md).
+The synthetic OIDs are **not** certified Delta/Eltek MIB identifiers.
+The optional profile does not start with the default Docker Compose stack.
