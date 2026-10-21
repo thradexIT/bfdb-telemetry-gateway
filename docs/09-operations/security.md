@@ -88,3 +88,15 @@ Production hardening requires:
 - observability and incident diagnostics.
 
 The anonymous lab broker and ephemeral tunnel configuration must not be promoted unchanged to production.
+
+## Lab exposure guard (2026-10-21)
+
+The default BFDB Compose stack explicitly binds MQTT 1883, PostgreSQL 5432,
+Modbus TCP 1502 and all three SNMPv3 UDP lab agent ports to **127.0.0.1**.
+The SNMP overlay is validated with `docker compose config --quiet` and a
+machine-readable check that no published port binds a non-loopback address.
+This is a local-only profile: operators needing a remote isolated test must
+arrange a private authenticated overlay, not publish the lab's anonymous
+MQTT broker or database publicly. Remote-review overlay does not constitute a
+production encryption design. Site Mapper's SNMP production gate and
+persistent batch-integrity P1 issue remain separate concerns.

@@ -25,5 +25,22 @@ jobs:
         run: node --test apps/snmp-emulator/chaos.test.mjs
       - name: Verify existing UDP SNMPv3 agent contract
         run: npm test --prefix apps/snmp-emulator
+      - name: Verify optional SNMP Compose configuration and localhost-only exposed ports
+        env:
+          SNMP_V3_USERNAME: isolated-test-user
+          SNMP_V3_AUTH_KEY: isolated-auth-key-test
+          SNMP_V3_PRIV_KEY: isolated-privacy-key-test
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.snmp.yml --profile snmp config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.snmp.yml --profile snmp config --format json > /tmp/bfdb-compose-audit.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/bfdb-compose-audit.json', encoding='utf-8') as stream:
+              stack = json.load(stream)
+          for name, service in stack['services'].items():
+              for port in service.get('ports', []):
+                  assert port.get('host_ip') == '127.0.0.1', f'{name}: non-loopback published port {port}'
+          print('All published lab ports loopback-only')
+          PY
       - name: Production SNMP dependency audit
         run: npm audit --prefix apps/snmp-emulator --omit=dev --audit-level=high
