@@ -50,3 +50,25 @@ test('commissioning profile explicitly declares OIDs and engineering scales for 
   assert.equal(p.measurements.filter(x=>x.metric==='CURRENT').length,2);
   assert.ok(p.measurements.every(x=>x.scale===0.1));
 });
+
+test('Config 4 has 4 distinct feed OIDs, signed DC readings and backward-compatible generic profile', async () => {
+  const { CONFIG4_INPUT_FEEDS, ELTEK_BDCBB_CONFIG_4, inputFeeds, isPublishedFeed } =
+    await import('./oid-profile.mjs');
+  assert.deepEqual(inputFeeds(ELTEK_BDCBB_CONFIG_4).map((feed) => feed.id), ['A1', 'A2', 'B1', 'B2']);
+  assert.equal(new Set(CONFIG4_INPUT_FEEDS.flatMap((f) => [f.currentOid, f.voltageOid])).size, 8);
+  assert.ok(CONFIG4_INPUT_FEEDS.every((f) => !INPUT_FEEDS.some(
+    (old) => old.currentOid === f.currentOid)));
+  assert.equal(collectorCommissioning('EMU-DELTA-BFDB-01', ELTEK_BDCBB_CONFIG_4)
+    .measurements.length, 8);
+  for (const id of SUPPORTED_BFDB) {
+    const s = feedSnapshot(id, 12, 'NORMAL', ELTEK_BDCBB_CONFIG_4);
+    assert.deepEqual(Object.keys(s), ['A1','A2','B1','B2']);
+    assert.ok(Object.values(s).every((v) => v.currentDeciA > 0 &&
+      v.voltageDeciV < -480 && v.voltageDeciV > -580));
+    assert.equal(feedSnapshot(id, 12, 'HIGH_B2', ELTEK_BDCBB_CONFIG_4).B2.currentDeciA, 6500);
+  }
+  assert.equal(isPublishedFeed('A2', 'MISSING_A2'), false);
+  assert.equal(isPublishedFeed('A1', 'MISSING_A2'), true);
+  assertConfig({ ...valid(), profile: ELTEK_BDCBB_CONFIG_4, scenario: 'MISSING_A2' });
+  assert.throws(() => assertConfig({ ...valid(), profile: 'INVALID' }));
+});

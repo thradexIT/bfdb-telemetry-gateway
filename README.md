@@ -1000,3 +1000,8 @@ used in the later real-Delta integration.
 Read [SNMP Emulator → Site Mapper lab and commissioning](docs/04-emulator/delta-snmp-bdfb-lab.md).
 The synthetic OIDs are **not** certified Delta/Eltek MIB identifiers.
 The optional profile does not start with the default Docker Compose stack.
+
+**New (2026-10-21):** `SNMP_EMULATOR_PROFILE=ELTEK_BDCBB_CONFIG_4`
+adds four independently simulated A1/A2/B1/B2 SNMP input shunts per BFDB.
+The existing two-feed profile is unchanged; full OID mapping and scenarios
+are appended to [the SNMP laboratory contract](docs/04-emulator/delta-snmp-bdfb-lab.md).
