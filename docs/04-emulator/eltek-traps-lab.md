@@ -60,3 +60,40 @@ remain available. Existing GET agents and MQTT emulator behavior are unchanged.
 Deferred: inspect heartbeat objects and numeric normalization, transport versions/informs,
 alarm clear/restart/freshness and Modbus reads in the user's laboratory. No new certification
 or main merge is claimed.
+
+## Unified Site Mapper revision (implementation only)
+
+This revision adds `eltek-sequence.mjs` and `eltek-lab-service.mjs`, plus
+`config/eltek-sequence.example.json`. No emulator, suite, integration run or build was executed
+for this change. Local acceptance remains pending. Historical evidence above applies only to its
+stated older commit.
+
+The sequence validates all steps before sending, accepts bounded explicit delays and optional repeat,
+and uses the existing `sendEltekTrap`/`trapScenario` contract. `ALL` expands the 16 original rev54
+notifications. The example covers explicit ON/OFF, measured voltage/current/temperature, heartbeat
+and an unknown binary varbind. V1/v2c/v3 and informs are available through the standalone sender;
+unified Site Mapper uses SNMPv3 authPriv informs. A sequence failure fails the process so Compose
+can restart it; there is no claim of transport/database acceptance from a sender log alone.
+
+The optional combined lab service publishes synthetic Integer32 GET scalars at the same rev54 OIDs
+used in measured-object notifications, plus a power-system enum. It requires v3 authPriv, exposes
+read-only access, and advances values from the configured sequence. Existing generic/Delta agents
+and MQTT partial-update/electrical behavior remain intact. The MQTT message counter starts from
+nanosecond epoch rather than resetting to 1000, preserving numeric string IDs while preventing
+reused IDs after emulator restart.
+
+Use the launcher in the existing Site Mapper PR #103:
+
+```bash
+python3 scripts/telemetry/industrial-lab.py --bfdb-dir /absolute/path/to/this/bfdb-checkout
+# Review generated private configuration, then run locally:
+python3 scripts/telemetry/industrial-lab.py --bfdb-dir /absolute/path/to/this/bfdb-checkout --action up
+```
+
+Run that command from the Site Mapper checkout. It starts this repository's broker/MQTT emulator
+and three synthetic SNMP agent/emitters, with fixed origins on a dedicated private Docker network.
+It does not invoke this repository's default Compose, telemetry-gateway, database or Modbus server.
+Site Mapper owns gateway/Mongo/Timescale/Modbus. Credentials are generated privately outside tracked
+files. Source serials `EMU-BFDB-01..03` match topics, profiles, logical aliases and the Modbus unit map.
+The Site Mapper runbook `docs/telemetry/industrial-unified-lab.md` includes exact ownership, startup,
+diagnostics, versioned CSV, LAB/FIELD substitution and the local acceptance checklist.

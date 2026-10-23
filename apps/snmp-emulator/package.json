@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test",
-    "traps": "node eltek-traps.mjs"
+    "traps": "node eltek-traps.mjs",
+    "sequence": "node eltek-sequence.mjs",
+    "eltek-lab": "node eltek-lab-service.mjs"
   },
   "dependencies": {
     "net-snmp": "3.29.2"

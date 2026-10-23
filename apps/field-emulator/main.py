@@ -66,7 +66,8 @@ def main():
             )
 
     cursors={d["bfdbId"]:1 for d in devices}
-    msgid=1000
+    # Preserve numeric wire IDs while avoiding reuse after a laboratory restart.
+    msgid=time.time_ns()
     cycle=0
     last=time.monotonic()
 
@@ -127,3 +128,4 @@ def main():
 
 if __name__=="__main__":
     main()
+
