@@ -47,7 +47,7 @@ export function realisticVarbinds({ bfdbId, profile = 'GENERIC_2_FEED', scenario
   result.push(vb(LAB_TRAP_ROOT + '.20.4.0', INTEGER, 0)); // a valid zero, never missing data
   result.push(vb(LAB_TRAP_ROOT + '.20.5.0', INTEGER, 4)); // disabled(4) style enum
   result.push(vb(LAB_TRAP_ROOT + '.20.6.0', INTEGER, 86)); // unscaled fuse/auxiliary RAW
-  result.push(vb(LAB_TRAP_ROOT + '.21.' + ((sequence % 4096) + 1) + '.0', INTEGER, sequence));
+  result.push(vb(LAB_TRAP_ROOT + '.21.1.0', INTEGER, sequence));
   return result;
 }
 /**
