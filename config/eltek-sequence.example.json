@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "repeat": true,
+  "steps": [
+    {
+      "delayMs": 5000,
+      "name": "alarmPowerSystemTrap",
+      "active": true,
+      "metric": "voltage",
+      "measuredValue": 480,
+      "unknown": true
+    },
+    {
+      "delayMs": 1000,
+      "name": "alarmBatteryTrap",
+      "active": true,
+      "metric": "current",
+      "measuredValue": 125
+    },
+    {
+      "delayMs": 1000,
+      "name": "alarmInputsTrap",
+      "active": true,
+      "metric": "temperature",
+      "measuredValue": 253
+    },
+    { "delayMs": 1000, "name": "infoHeartBeatTrap" },
+    {
+      "delayMs": 1000,
+      "name": "ALL",
+      "active": false,
+      "metric": "voltage",
+      "measuredValue": 481
+    }
+  ]
+}
