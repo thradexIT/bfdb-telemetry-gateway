@@ -1,0 +1,74 @@
+name: G10 SNMP -> Mongo -> Timescale -> FC03 integrated acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'apps/snmp-emulator/**'
+      - '.github/workflows/g10-industrial-acceptance.yml'
+      - 'config/eltek-sequence.example.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rich-eltek-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DOCKER_BUILDKIT: '1'
+    steps:
+      - name: Checkout BFDB emulator branch
+        uses: actions/checkout@v4
+        with:
+          path: bfdb
+
+      - name: Checkout public Site Mapper G10 PR branch
+        uses: actions/checkout@v4
+        with:
+          repository: em3rc0dTh/AppM-Site-Mapper
+          ref: feat/g10-snmp-read-show-store-modbus-2026-10-28
+          path: site-mapper
+          persist-credentials: false
+
+      - name: Compile read-only acceptance scripts
+        run: |
+          python3 -m py_compile site-mapper/scripts/telemetry/industrial-lab.py
+          python3 -m py_compile site-mapper/scripts/telemetry/accept-eltek-rich-lab.py
+
+      - name: Prepare disposable lab and private credentials
+        working-directory: site-mapper
+        run: |
+          python3 scripts/telemetry/industrial-lab.py \
+            --bfdb-dir ../bfdb --snmp-sweep-count 5407
+
+      - name: Start real SNMPv3, Mongo replica, Timescale, Site Mapper and Modbus
+        working-directory: site-mapper
+        run: |
+          python3 scripts/telemetry/industrial-lab.py \
+            --bfdb-dir ../bfdb --snmp-sweep-count 5407 --action up
+
+      - name: Assert 5407 RAW signals reach Mongo and Timescale and FC03 quality/value
+        working-directory: site-mapper
+        run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600
+
+      - name: Report safe diagnostics on failure
+        if: failure()
+        working-directory: site-mapper
+        run: |
+          python3 scripts/telemetry/industrial-lab.py \
+            --bfdb-dir ../bfdb --snmp-sweep-count 5407 --action status || true
+          # Never dump generated credentials, JSON profiles or full raw customer data.
+          docker ps --format 'table {{.Names}}\t{{.Status}}' || true
+
+      - name: Dispose isolated laboratory volumes
+        if: always()
+        working-directory: site-mapper
+        run: |
+          docker compose --project-name site-mapper-industrial-lab \
+            --project-directory "$PWD" \
+            --env-file .runtime/industrial-lab/lab.env \
+            -f docker-compose.telemetry.yml \
+            -f docker-compose.industrial.yml \
+            -f .runtime/industrial-lab/compose.json \
+            down --volumes --remove-orphans || true

@@ -97,3 +97,28 @@ Site Mapper owns gateway/Mongo/Timescale/Modbus. Credentials are generated priva
 files. Source serials `EMU-BFDB-01..03` match topics, profiles, logical aliases and the Modbus unit map.
 The Site Mapper runbook `docs/telemetry/industrial-unified-lab.md` includes exact ownership, startup,
 diagnostics, versioned CSV, LAB/FIELD substitution and the local acceptance checklist.
+
+## Real UDP + TimescaleDB acceptance (2026-10-28, emulated hardware)
+
+The opt-in `eltek-rich-sweep.mjs` emits exactly 5,407 distinct lab SNMP
+signals, batched at <=24 varbinds per UDP PDU. Values mirror the original
+inventory's *types and distributions* without ingesting the customer's Excel
+or exposing real serial numbers, addresses, credentials or proprietary site
+identities. Rev54 known OIDs are used for voltage (5389), load current (91),
+fuse raw (86), disabled state (4), pushbutton observation (0), temperatures
+and six physical-label examples. Remaining OIDs deliberately use a separate
+private synthetic enterprise subtree. These are **not real Eltek OIDs**.
+
+The original default remains unchanged. Enable `SNMP_LAB_SWEEP_COUNT=5407`
+in the optional combined lab service. It emits an initial catalogue sweep,
+then normal alarm ON/OFF + heartbeat sequence. Traps are event-driven in
+field equipment: the lab sweep is a synthetic **capacity and fidelity test**,
+not a statement that a physical controller broadcasts all MIB objects.
+
+Companion Site Mapper PR #113 includes an opt-in launcher parameter
+`--snmp-sweep-count 5407`, private x0.01 V / x1 A synthetic profile,
+and read-only acceptance receipt for Mongo, Timescale raw, and FC03 value +
+quality. The G10 workflow in this PR attempts the full stack using disposable
+Docker services and no real BMS or controller. Only `LAB_PASS` from that
+workflow establishes end-to-end simulated acceptance; the ordinary emulator
+unit-test green status does not. Real hardware certification remains open.
