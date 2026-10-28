@@ -48,6 +48,14 @@ jobs:
           python3 scripts/telemetry/industrial-lab.py \
             --bfdb-dir ../bfdb --snmp-sweep-count 5407 --action up
 
+      - name: Check isolated Modbus bridge startup (fail fast)
+        run: |
+          sleep 8
+          if ! docker exec site-mapper-industrial-lab-modbus-tcp-1 node -e 'console.log("modbus.startup.alive")'; then
+            docker logs --tail 35 site-mapper-industrial-lab-modbus-tcp-1 2>&1 | sed -E 's/(Bearer|token|password|secret|authKey|privKey)[=: ][^ ,}]*/\\1=[REDACTED]/Ig' || true
+            exit 1
+          fi
+
       - name: Assert 5407 RAW signals reach Mongo and Timescale and FC03 quality/value
         working-directory: site-mapper
         run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600
@@ -60,6 +68,13 @@ jobs:
             --bfdb-dir ../bfdb --snmp-sweep-count 5407 --action status || true
           # Never dump generated credentials, JSON profiles or full raw customer data.
           docker ps --format 'table {{.Names}}\t{{.Status}}' || true
+          for container in modbus-tcp lab-snmp-01 snmp-traps site-mapper; do
+            echo "== status $container =="
+            docker logs --tail 20 "site-mapper-industrial-lab-$container-1" 2>&1 |
+              sed -E 's/(Bearer|token|password|secret|authKey|privKey)[=: ][^ ,}]*/\\1=[REDACTED]/Ig' |
+              grep -Ei 'error|failed|retry|rejected|invalid|error:|unavailable|ENOENT|EACCES' || true
+          done
+
 
       - name: Dispose isolated laboratory volumes
         if: always()
