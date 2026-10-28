@@ -16,9 +16,12 @@ const rich = sweepCount > 0;
 const loaded = await loadSequence();
 const input = rich ? {
   ...loaded,
-  steps: loaded.steps.map(step =>
-    step.measuredValue !== undefined ? step :
-    { ...step, measuredValue: RICH_ENGINEERING_RAW[step.metric || 'voltage'] }),
+  steps: loaded.steps.map(step => ({
+    ...step,
+    // Explicit legacy sequence values (480/125) are intentionally overridden
+    // only in rich mode, so GET and INFORM agree on the same synthetic sample.
+    measuredValue: RICH_ENGINEERING_RAW[step.metric || 'voltage'],
+  })),
 } : loaded;
 parseSequence(input);
 const config = sequenceTarget();
