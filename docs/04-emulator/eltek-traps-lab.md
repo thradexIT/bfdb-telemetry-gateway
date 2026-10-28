@@ -122,3 +122,18 @@ quality. The G10 workflow in this PR attempts the full stack using disposable
 Docker services and no real BMS or controller. Only `LAB_PASS` from that
 workflow establishes end-to-end simulated acceptance; the ordinary emulator
 unit-test green status does not. Real hardware certification remains open.
+
+## G10 acceptance hardening · 2026-10-28
+
+The first complete Docker run reported `LAB_FAIL` because its Modbus sidecar
+could not read the mounted configuration (`EACCES /config/points.json`).
+This was a **laboratory file-ownership mismatch**, not a reason to weaken
+production auth or modify the stable FC03 register map. Site Mapper's companion
+G10 branch now makes only synthetic non-secret lab profiles/points readable
+inside its unprivileged containers; the parent runtime directory remains
+private and all bearer keys, SNMP credentials and environment files remain 0600.
+
+The 5,407-point sweep raises receiver spool and per-source ingest quotas only
+for the disposable load lab. The default deployed service quotas are unchanged.
+A subsequent CI attempt MUST produce `LAB_PASS` (not merely green SNMP
+emulator tests) to claim this specific end-to-end acceptance.
