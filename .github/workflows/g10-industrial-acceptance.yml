@@ -27,7 +27,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: em3rc0dTh/AppM-Site-Mapper
-          ref: feat/g10-snmp-read-show-store-modbus-2026-10-28
+          # Pinned reviewed G10 source for reproducible cross-repository acceptance.
+          ref: f84584768944346461a5ab1ff008e3ae407b0109
           path: site-mapper
           persist-credentials: false
 
@@ -41,6 +42,21 @@ jobs:
         run: |
           python3 scripts/telemetry/industrial-lab.py \
             --bfdb-dir ../bfdb --snmp-sweep-count 5407
+
+      - name: Verify lab-only config modes and private credentials
+        working-directory: site-mapper
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('.runtime/industrial-lab')
+          for name in ('points.json','logical.json','profiles-rich.json'):
+              path=root/name
+              assert path.is_file() and path.stat().st_mode & 0o777 == 0o644, name
+          for name in ('secrets.json','lab.env'):
+              path=root/name
+              assert path.is_file() and path.stat().st_mode & 0o777 == 0o600, name
+          print('LAB_PROFILE_MOUNTS_READABLE_AND_SECRETS_PRIVATE')
+          PY
 
       - name: Start real SNMPv3, Mongo replica, Timescale, Site Mapper and Modbus
         working-directory: site-mapper
