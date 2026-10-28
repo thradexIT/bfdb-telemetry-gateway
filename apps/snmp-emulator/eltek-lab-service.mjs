@@ -2,13 +2,24 @@
 // Existing Delta/generic agent and MQTT emulator remain unchanged.
 import snmp from "net-snmp";
 import { SYNTHETIC_MEASUREMENTS } from "./eltek-traps.mjs";
+import { emitSyntheticInventory, RICH_ENGINEERING_RAW } from "./eltek-rich-sweep.mjs";
 import {
   loadSequence,
   parseSequence,
   runSequence,
   sequenceTarget,
 } from "./eltek-sequence.mjs";
-const input = await loadSequence();
+const sweepCount = Number(process.env.SNMP_LAB_SWEEP_COUNT || 0);
+if (!Number.isInteger(sweepCount) || sweepCount < 0 || sweepCount > 10000)
+  throw new Error('SNMP_LAB_SWEEP_COUNT must be 0..10000');
+const rich = sweepCount > 0;
+const loaded = await loadSequence();
+const input = rich ? {
+  ...loaded,
+  steps: loaded.steps.map(step =>
+    step.measuredValue !== undefined ? step :
+    { ...step, measuredValue: RICH_ENGINEERING_RAW[step.metric || 'voltage'] }),
+} : loaded;
 parseSequence(input);
 const config = sequenceTarget();
 if (
@@ -52,7 +63,7 @@ for (const [name, m] of Object.entries(SYNTHETIC_MEASUREMENTS)) {
     scalarType: snmp.ObjectType.Integer,
     maxAccess: snmp.MaxAccess["read-only"],
   });
-  mib.setScalarValue(name, m.raw);
+  mib.setScalarValue(name, rich ? RICH_ENGINEERING_RAW[name] : m.raw);
 }
 mib.registerProvider({
   name: "powerSystemStatus",
@@ -66,13 +77,24 @@ const controller = new AbortController();
 for (const signal of ["SIGTERM", "SIGINT"])
   process.on(signal, () => controller.abort());
 try {
+  if (rich) {
+    const sweep = await emitSyntheticInventory(config, {
+      count: sweepCount,
+      batchSize: Number(process.env.SNMP_LAB_SWEEP_BATCH || 16),
+      intervalMs: Number(process.env.SNMP_LAB_SWEEP_INTERVAL_MS || 40),
+      signal: controller.signal,
+    });
+    console.info(JSON.stringify({ event: 'synthetic.eltek.sweep.sent', ...sweep }));
+    if (!sweep.complete && !controller.signal.aborted)
+      throw new Error('SNMP synthetic inventory incomplete');
+  }
   await runSequence(config, input, {
     signal: controller.signal,
     onScenario: (scenario) => {
       const metric = scenario.metric || "voltage";
       mib.setScalarValue(
         metric,
-        scenario.measuredValue ?? SYNTHETIC_MEASUREMENTS[metric].raw,
+        scenario.measuredValue ?? (rich ? RICH_ENGINEERING_RAW[metric] : SYNTHETIC_MEASUREMENTS[metric].raw),
       );
       if (scenario.name !== "infoHeartBeatTrap")
         mib.setScalarValue(
