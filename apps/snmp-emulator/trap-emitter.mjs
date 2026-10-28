@@ -9,6 +9,7 @@ import { feedSnapshot, inputFeeds } from './oid-profile.mjs';
 
 export const LAB_TRAP_ROOT = '1.3.6.1.4.1.8072.9999.2026.50';
 export const LAB_NOTIFICATION_OID = LAB_TRAP_ROOT + '.0.1';
+export const FULL_CATALOG_SIZE = 5407;
 
 function boundedInteger(value, name, min, max) {
   const number = Number(value);
@@ -49,6 +50,36 @@ export function realisticVarbinds({ bfdbId, profile = 'GENERIC_2_FEED', scenario
   result.push(vb(LAB_TRAP_ROOT + '.21.' + ((sequence % 4096) + 1) + '.0', INTEGER, sequence));
   return result;
 }
+/**
+ * Full-catalog coverage model: precisely 5,407 DISTINCT OID instances.
+ * Does not use a vendor spreadsheet or impersonate vendor OID definitions.
+ * On real firmware, vendor-specific scaling/meaning still comes from MIB evidence.
+ * The baseline set is deterministic, but values evolve with sequence.
+ */
+export function fullCatalogVarbinds({ bfdbId, profile = 'GENERIC_2_FEED', scenario = 'NORMAL', elapsed = 0, sequence = 0 }) {
+  const base = realisticVarbinds({ bfdbId, profile, scenario, elapsed, sequence });
+  const seen = new Set(base.map(item => item.oid));
+  const result = [...base];
+  let index = 1;
+  while (result.length < FULL_CATALOG_SIZE) {
+    const oid = LAB_TRAP_ROOT + '.30.' + index + '.0';
+    index++;
+    if (seen.has(oid)) continue;
+    seen.add(oid);
+    const family = index % 19;
+    const raw = family === 0 ? Buffer.from('synthetic status ' + index)
+      : family === 1 ? Buffer.from([0, 255, index % 256])
+      : family === 2 ? 4
+      : family === 3 ? 0
+      : family === 4 ? 86
+      : family === 5 ? (sequence + index) % 2
+      : family === 6 ? -530 + (index % 9)
+      : family === 7 ? Math.round(100 + 15 * Math.sin((sequence + index) / 17))
+      : (index + sequence) % 4;
+    result.push(vb(oid, Buffer.isBuffer(raw) ? STRING : INTEGER, raw));
+  }
+  return result;
+}
 export function splitVarbinds(varbinds, size = 24) {
   boundedInteger(size, 'SNMP_TRAP_BATCH_SIZE', 1, 48);
   const packets = [];
@@ -69,13 +100,17 @@ export function trapSettings(env = process.env) {
   if (version === '3' && (!env.SNMP_V3_USERNAME || !env.SNMP_V3_AUTH_KEY ||
     env.SNMP_V3_AUTH_KEY.length < 8 || !env.SNMP_V3_PRIV_KEY || env.SNMP_V3_PRIV_KEY.length < 8))
     throw new Error('SNMPv3 authPriv credentials required');
-  return {host, port, version, intervalMs, batchSize, inform: env.SNMP_TRAP_INFORM === 'true'};
+  return {
+    host, port, version, intervalMs, batchSize,
+    inform: env.SNMP_TRAP_INFORM === 'true',
+    fullCatalog: env.SNMP_TRAP_FULL_CATALOG === 'true',
+  };
 }
 export async function sendSnapshot(config, settings, sequence = 0) {
   const elapsed = sequence * settings.intervalMs / 1000;
-  const all = realisticVarbinds({ ...config, elapsed, sequence });
+  const all = (settings.fullCatalog ? fullCatalogVarbinds : realisticVarbinds)({ ...config, elapsed, sequence });
   const chunks = splitVarbinds(all, settings.batchSize);
-  const options = {port: settings.port, timeout: 2500, retries: 1};
+  const options = {port: settings.port, trapPort: settings.port, timeout: 2500, retries: 1};
   const session = settings.version === '3'
     ? snmp.createV3Session(settings.host, {
       name: config.username,

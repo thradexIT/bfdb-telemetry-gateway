@@ -52,3 +52,20 @@ acknowledgements and the correct SNMP principal. For v2c, specify a private
 
 **Do not alter** existing BDFB Unit 1–3 holding-register offsets 0–767.
 Never convert unknown SNMP strings into engineering measurements.
+
+## Complete vendor-volume stress mode (5,407 OIDs)
+
+To test the observed number of supplier variables without relying on an Excel
+or assuming a single trap includes a MIB WALK, set:
+```bash
+SNMP_TRAP_FULL_CATALOG=true SNMP_TRAP_ONCE=true node apps/snmp-emulator/trap-sender.mjs
+```
+This generates exactly **5,407 distinct synthetic numeric OID instances**
+with diverse real BER data types and original values. At default 24 varbinds
+per PDU, this produces **226 separate SNMP traps**. Each PDU is individually
+bounded; Site Mapper's catalog limit of 10,000/source is not exceeded.
+A UDP packet is NOT guaranteed delivery. Validate receiver counts, outbox
+retries, sequence gaps, duplicates, Timescale writes, and partial packet failures
+before calling the run accepted. Do not run full snapshots repeatedly at the
+default 30-second interval against limited production storage: use one-shot
+acceptance or explicitly size retention, disk and outbox throughput.
