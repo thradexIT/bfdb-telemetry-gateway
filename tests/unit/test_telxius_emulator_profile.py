@@ -82,3 +82,32 @@ def test_panel_labels_are_inventory_metadata_not_rtu_slave_inference():
         "A3", "A2", "B3", "B2"
     ]
     assert qdf4["fieldInventory"]["rtuSlaves"] == {"A3": 1, "A2": 3, "B3": 5, "B2": 7}
+
+
+def test_telxius_full_scan_covers_all_raw_points_without_inventing_measurements():
+    with (ROOT / "config" / "emulator.telxius-seed-01.yaml").open(
+        "r", encoding="utf-8"
+    ) as handle:
+        emulator = yaml.safe_load(handle)
+    assert emulator["publish"]["mode"] == "full_scan_chunks"
+    assert emulator["publish"]["chunkSize"] == 10
+
+    for device in profile():
+        all_points = {}
+        for panel_index in range(1, 5):
+            all_points.update(
+                field_emulator.build_reported(
+                    device,
+                    Fleet(),
+                    panel_index=panel_index,
+                    positions=list(range(1, 25)),
+                    positions_per_panel=24,
+                )
+            )
+
+        measured = [value for value in all_points.values() if "U1" in value]
+        state_only = [value for value in all_points.values() if value == {"state": "ONLINE"}]
+
+        assert len(all_points) == 96
+        assert len(measured) == device["identity"]["inventoryBreakerCount"]
+        assert len(state_only) == 96 - device["identity"]["inventoryBreakerCount"]
