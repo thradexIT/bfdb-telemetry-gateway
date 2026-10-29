@@ -29,3 +29,5 @@ jobs:
         run: npm test
       - name: Build opt-in SNMP Docker service
         run: docker build -f apps/snmp-emulator/Dockerfile -t bfdb-snmp-lab:ci .
+      - name: Build private-evidence Smartpack2 snapshot service
+        run: docker build -f apps/snmp-snapshot-emulator/Dockerfile -t bfdb-smartpack2-snapshot:ci .
