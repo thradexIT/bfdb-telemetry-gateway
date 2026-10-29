@@ -11,7 +11,7 @@ devices:
       positionsPerPanel: 24
       minCircuit: 1
       maxCircuit: 96
-      physicalPanelOrder: [A1, A2, B1, B2]
+      labPanelOrder: [A1, A2, B1, B2]
       measuredPositionsByPanel:
         "1": [1, 2, 3, 4]
         "2": [1, 2, 3, 6, 7, 8, 14, 15, 16]
@@ -34,7 +34,7 @@ devices:
       positionsPerPanel: 24
       minCircuit: 1
       maxCircuit: 96
-      physicalPanelOrder: [A3, A2, B3, B2]
+      labPanelOrder: [A3, A2, B3, B2]
       measuredPositionsByPanel:
         "1": [1, 2, 3, 4, 5, 6]
         "2": []
@@ -57,7 +57,7 @@ devices:
       positionsPerPanel: 24
       minCircuit: 1
       maxCircuit: 96
-      physicalPanelOrder: [A3, A2, B3, B2]
+      labPanelOrder: [A3, A2, B3, B2]
       measuredPositionsByPanel:
         "1": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
         "2": []
