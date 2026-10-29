@@ -99,12 +99,25 @@ function sessionFor(config) {
  * Site Mapper, Mongo, Timescale or Metasys acceptance. Never assert those here.
  * No UDP message carries more than 24 application varbinds.
  */
-export async function emitSyntheticInventory(config, {
-  count = TARGET_INVENTORY_SIZE, batchSize = 16, intervalMs = 40,
-  signal, onBatch = () => {},
+export async function emitInventory(config, inventory, {
+  batchSize = 16, intervalMs = 40, signal, onBatch = () => {},
+  notificationOid = PRIVATE_LAB_NOTIFICATION,
 } = {}) {
   validateTarget(config, { batchSize, intervalMs });
-  const inventory = syntheticInventory(count);
+  if (!Array.isArray(inventory) || inventory.length < 1 || inventory.length > 10000)
+    throw new Error('SNMP inventory must contain 1..10000 varbinds');
+  if (!/^\d+(?:\.\d+){5,}$/.test(notificationOid))
+    throw new Error('SNMP inventory notification OID must be numeric');
+  const unique = new Set();
+  for (const item of inventory) {
+    if (!item || typeof item !== 'object' ||
+        typeof item.oid !== 'string' || !/^\d+(?:\.\d+){5,}$/.test(item.oid) ||
+        typeof item.type !== 'number' || !Object.hasOwn(item, 'value'))
+      throw new Error('Invalid SNMP inventory varbind');
+    if (unique.has(item.oid)) throw new Error('Duplicate SNMP inventory OID');
+    unique.add(item.oid);
+  }
+
   const session = sessionFor(config);
   let transmitted = 0, pdus = 0;
   const startUptime = Math.floor(Date.now() / 10) % 2_000_000_000;
@@ -114,21 +127,39 @@ export async function emitSyntheticInventory(config, {
       const items = inventory.slice(offset, offset + batchSize);
       await new Promise((resolve, reject) => {
         session[config.inform ? 'inform' : 'trap'](
-          PRIVATE_LAB_NOTIFICATION, items,
+          notificationOid, items,
           { upTime: startUptime + pdus },
           error => error ? reject(error) : resolve(),
         );
       });
       transmitted += items.length;
       pdus++;
-      onBatch({ transmitted, pdus, total: count });
-      if (intervalMs && offset + batchSize < count)
+      onBatch({ transmitted, pdus, total: inventory.length });
+      if (intervalMs && offset + batchSize < inventory.length)
         await new Promise(resolve => setTimeout(resolve, intervalMs));
     }
   } finally {
     session.close();
   }
-  return { transmitted, pdus, expected: count, complete: transmitted === count };
+  return {
+    transmitted,
+    pdus,
+    expected: inventory.length,
+    complete: transmitted === inventory.length,
+  };
+}
+
+export async function emitSyntheticInventory(config, {
+  count = TARGET_INVENTORY_SIZE, batchSize = 16, intervalMs = 40,
+  signal, onBatch = () => {},
+} = {}) {
+  return emitInventory(config, syntheticInventory(count), {
+    batchSize,
+    intervalMs,
+    signal,
+    onBatch,
+    notificationOid: PRIVATE_LAB_NOTIFICATION,
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
