@@ -8,3 +8,5 @@ __pycache__/
 .DS_Store
 infra/mosquitto/secrets/
 .env.snmp
+.runtime/telxius/
+.private-evidence/

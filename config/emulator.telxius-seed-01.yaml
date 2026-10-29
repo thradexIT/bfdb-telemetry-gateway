@@ -1,0 +1,25 @@
+version: "1.1"
+publish:
+  intervalSeconds: 10.0
+  mode: full_scan_chunks
+  chunkSize: 10
+  batchSize: 24
+  qos: 1
+  retain: false
+  topicTemplate: "data/dev/{serial}"
+electrical:
+  circuitsPerBfdb: 96
+  positionsPerPanel: 24
+  voltageNoise: 0.03
+  currentMaxStep: 0.35
+  loadStepProbability: 0.015
+  loadStepAmplitude: 3.0
+  currentMin: 0.0
+  currentMax: 14.0
+bfdbProfiles:
+  QDF-2: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+  QDF-4: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+  QDF-5: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+partialUpdates:
+  enabled: false
+  stateOnlyEveryMessages: 10

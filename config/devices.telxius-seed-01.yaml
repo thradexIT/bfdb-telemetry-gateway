@@ -1,0 +1,71 @@
+version: "1.1"
+profile: telxius-seed-01-evidence-driven
+devices:
+  - bfdbId: QDF-2
+    serial: EMU-TELXIUS-QDF-2
+    serialEnv: TELXIUS_QDF_2_SN
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      labPanelOrder: [A1, A2, B1, B2]
+      measuredPositionsByPanel:
+        "1": [1, 2, 3, 4]
+        "2": [1, 2, 3, 6, 7, 8, 14, 15, 16]
+        "3": [1, 2, 3, 4]
+        "4": [1, 2, 3, 6, 7, 8, 14, 15, 16]
+      inventoryBreakerCount: 26
+    fieldInventory:
+      gatewayModel: AWT100-CEHW
+      meterModel: AMC16Z-FDK24
+      rtuSlaves: {A3: 1, A2: 3, B3: 5, B2: 7}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+
+  - bfdbId: QDF-4
+    serial: EMU-TELXIUS-QDF-4
+    serialEnv: TELXIUS_QDF_4_SN
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      labPanelOrder: [A3, A2, B3, B2]
+      measuredPositionsByPanel:
+        "1": [1, 2, 3, 4, 5, 6]
+        "2": []
+        "3": [1, 2, 3, 4, 5, 6]
+        "4": []
+      inventoryBreakerCount: 12
+    fieldInventory:
+      gatewayModel: AWT100-CEHW
+      meterModel: AMC16Z-FDK24
+      rtuSlaves: {A3: 1, A2: 3, B3: 5, B2: 7}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+
+  - bfdbId: QDF-5
+    serial: EMU-TELXIUS-QDF-5
+    serialEnv: TELXIUS_QDF_5_SN
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      labPanelOrder: [A3, A2, B3, B2]
+      measuredPositionsByPanel:
+        "1": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        "2": []
+        "3": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        "4": []
+      inventoryBreakerCount: 36
+    fieldInventory:
+      gatewayModel: AWT100-CEHW
+      meterModel: AMC16Z-FDK24
+      rtuSlaves: {A3: 1, A2: 3, B3: 5, B2: 7}
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
