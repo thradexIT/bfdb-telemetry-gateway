@@ -39,10 +39,12 @@ services:
       MODBUS_HOST: ${MODBUS_HOST:-0.0.0.0}
       MODBUS_PORT: ${MODBUS_PORT:-1502}
       STALE_AFTER_SECONDS: ${STALE_AFTER_SECONDS:-15}
+      HISTORY_API_HOST: ${HISTORY_API_HOST:-0.0.0.0}
+      HISTORY_API_PORT: ${HISTORY_API_PORT:-8080}
     depends_on:
       timescaledb: {condition: service_healthy}
       mosquitto: {condition: service_started}
-    ports: ["127.0.0.1:1502:1502"]
+    ports: ["127.0.0.1:1502:1502", "127.0.0.1:18080:8080"]
     restart: unless-stopped
 
   field-emulator:
