@@ -1,10 +1,12 @@
 import importlib.util
 from pathlib import Path
+import sys
 
 import yaml
 from electrical.model import ElectricalSample
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "apps" / "field-emulator"))
 SPEC = importlib.util.spec_from_file_location(
     "telxius_field_emulator_main",
     ROOT / "apps" / "field-emulator" / "main.py",
