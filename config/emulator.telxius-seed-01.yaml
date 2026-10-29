@@ -1,6 +1,8 @@
-version: "1.0"
+version: "1.1"
 publish:
-  intervalSeconds: 1.0
+  intervalSeconds: 10.0
+  mode: panel_chunks
+  chunkSize: 10
   batchSize: 24
   qos: 1
   retain: false
@@ -8,16 +10,16 @@ publish:
 electrical:
   circuitsPerBfdb: 96
   positionsPerPanel: 24
-  voltageNoise: 0.08
+  voltageNoise: 0.03
   currentMaxStep: 0.35
   loadStepProbability: 0.015
   loadStepAmplitude: 3.0
   currentMin: 0.0
   currentMax: 14.0
 bfdbProfiles:
-  QDF-2: {nominalVoltage: 48.0, initialCurrentBase: 2.0}
-  QDF-4: {nominalVoltage: 48.0, initialCurrentBase: 3.0}
-  QDF-5: {nominalVoltage: 48.0, initialCurrentBase: 1.5}
+  QDF-2: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+  QDF-4: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
+  QDF-5: {nominalVoltage: 12.23, initialCurrentBase: 2.0}
 partialUpdates:
-  enabled: true
+  enabled: false
   stateOnlyEveryMessages: 10
