@@ -174,7 +174,7 @@ def main():
     panels_per_bfdb = validate_devices(devices, circuits, positions_per_panel)
 
     mode = str(pubcfg.get("mode", "rolling")).strip().lower()
-    if mode not in {"rolling", "panel_chunks"}:
+    if mode not in {"rolling", "panel_chunks", "full_scan_chunks"}:
         raise ValueError(f"unsupported publish mode: {mode}")
 
     chunk_size = int(pubcfg.get("chunkSize", batch))
@@ -204,20 +204,32 @@ def main():
         cycle += 1
 
         for device in devices:
-            if mode == "panel_chunks":
-                panel_index = panel_cursors[device["bfdbId"]]
-                panel_cursors[device["bfdbId"]] = (panel_index % panels_per_bfdb) + 1
+            if mode in {"panel_chunks", "full_scan_chunks"}:
+                if mode == "full_scan_chunks":
+                    panel_indexes = range(1, panels_per_bfdb + 1)
+                else:
+                    panel_index = panel_cursors[device["bfdbId"]]
+                    panel_cursors[device["bfdbId"]] = (panel_index % panels_per_bfdb) + 1
+                    panel_indexes = (panel_index,)
+
                 epoch = int(time.time())
                 positions = list(range(1, positions_per_panel + 1))
-                for offset in range(0, positions_per_panel, chunk_size):
-                    selected = positions[offset:offset + chunk_size]
-                    reported = build_reported(
-                        device, fleet, panel_index, selected, positions_per_panel
-                    )
-                    publish_message(
-                        pub, pubcfg, device, reported, msgid, epoch, panel_index=panel_index
-                    )
-                    msgid += 1
+                for panel_index in panel_indexes:
+                    for offset in range(0, positions_per_panel, chunk_size):
+                        selected = positions[offset:offset + chunk_size]
+                        reported = build_reported(
+                            device, fleet, panel_index, selected, positions_per_panel
+                        )
+                        publish_message(
+                            pub,
+                            pubcfg,
+                            device,
+                            reported,
+                            msgid,
+                            epoch,
+                            panel_index=panel_index,
+                        )
+                        msgid += 1
                 continue
 
             start = cursors[device["bfdbId"]]
