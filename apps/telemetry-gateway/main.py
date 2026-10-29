@@ -12,6 +12,7 @@ from parser.payload import PayloadError,parse_message
 from quality.engine import quality_label,quality_word
 from state.store import LatestStateStore
 from timeseries.repository import TimeSeriesRepository
+from history_api import start_history_server
 
 ROOT=Path(__file__).resolve().parents[2]
 CONFIG=ROOT/"config"
@@ -36,6 +37,11 @@ async def main():
         f"password={os.getenv('DB_PASSWORD','bfdb_dev')}"
     )
     tsdb=TimeSeriesRepository(dsn)
+    history_server=start_history_server(
+        tsdb,
+        os.getenv("HISTORY_API_HOST","0.0.0.0"),
+        int(os.getenv("HISTORY_API_PORT","8080"))
+    )
     projection=ModbusProjection([int(d["unitId"]) for d in devices])
     stale_after=float(os.getenv("STALE_AFTER_SECONDS","15"))
     queue=asyncio.Queue(maxsize=20000)

@@ -26,3 +26,51 @@ class TimeSeriesRepository:
         except (psycopg.OperationalError,psycopg.InterfaceError):
             self.conn=self._connect()
             raise
+
+
+    def query_history(self,*,serial,interval,bucket,raw_point_ids):
+        params=[bucket,serial,interval]
+        raw_filter=""
+        if raw_point_ids:
+            raw_filter=" AND raw_point_id = ANY(%s)"
+            params.append(raw_point_ids)
+        sql=f"""
+        WITH per_point AS (
+          SELECT
+            time_bucket(%s::interval, observed_at) AS bucket,
+            raw_point_id,
+            AVG(voltage_v) AS voltage_v,
+            AVG(current_a) AS current_a,
+            AVG(power_w) AS power_w,
+            AVG(energy_kwh) AS energy_kwh
+          FROM telemetry_samples
+          WHERE gateway_serial=%s
+            AND observed_at >= NOW() - %s::interval
+            {raw_filter}
+          GROUP BY bucket, raw_point_id
+        )
+        SELECT
+          bucket,
+          AVG(voltage_v) AS voltage_v,
+          AVG(current_a) AS current_a,
+          AVG(power_w) AS power_w,
+          AVG(energy_kwh) AS energy_kwh,
+          COUNT(*) AS active_points
+        FROM per_point
+        GROUP BY bucket
+        ORDER BY bucket ASC
+        """
+        with psycopg.connect(self.dsn,autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql,params)
+                return [
+                    {
+                        "observedAt": row[0].isoformat(),
+                        "voltageV": None if row[1] is None else float(row[1]),
+                        "currentA": None if row[2] is None else float(row[2]),
+                        "powerW": None if row[3] is None else float(row[3]),
+                        "energyKwh": None if row[4] is None else float(row[4]),
+                        "activeBreakers": int(row[5]),
+                    }
+                    for row in cur.fetchall()
+                ]
