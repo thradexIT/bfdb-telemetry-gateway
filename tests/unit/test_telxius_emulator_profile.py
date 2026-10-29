@@ -61,12 +61,12 @@ def test_qdf4_emits_full_measurements_only_for_documented_positions():
 
 def test_serial_override_is_opt_in_and_does_not_change_tracked_profile(monkeypatch):
     devices = profile()
-    monkeypatch.setenv("TELXIUS_QDF_4_SN", "25110703400009")
+    monkeypatch.setenv("TELXIUS_QDF_4_SN", "LAB-AWT-QDF4-001")
     overridden = field_emulator.apply_serial_overrides(devices)
 
     qdf4 = next(item for item in overridden if item["bfdbId"] == "QDF-4")
     tracked = next(item for item in devices if item["bfdbId"] == "QDF-4")
-    assert qdf4["serial"] == "25110703400009"
+    assert qdf4["serial"] == "LAB-AWT-QDF4-001"
     assert tracked["serial"] == "EMU-TELXIUS-QDF-4"
 
 
