@@ -1,0 +1,37 @@
+# Opt-in Telxius seed-01 hardware-emulation overlay.
+# Site Mapper remains the consumer/owner of normalized telemetry, history and Modbus.
+services:
+  telxius-field-emulator:
+    profiles: [telxius]
+    build: .
+    command: ["python", "apps/field-emulator/main.py"]
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      EMULATOR_DEVICES_FILE: devices.telxius-seed-01.yaml
+      EMULATOR_CONFIG_FILE: emulator.telxius-seed-01.yaml
+      TELXIUS_QDF_2_SN: ${TELXIUS_QDF_2_SN:-}
+      TELXIUS_QDF_4_SN: ${TELXIUS_QDF_4_SN:-}
+      TELXIUS_QDF_5_SN: ${TELXIUS_QDF_5_SN:-}
+    depends_on:
+      mosquitto: {condition: service_started}
+    restart: unless-stopped
+
+  telxius-smartpack2:
+    profiles: [telxius]
+    build:
+      context: .
+      dockerfile: apps/snmp-emulator/Dockerfile
+    command: ["node", "telxius-smartpack2-walk-agent.mjs"]
+    environment:
+      SNMP_AGENT_HOST: 0.0.0.0
+      SNMP_AGENT_PORT: 1161
+      SNMP_VERSION: ${TELXIUS_SNMP_VERSION:-2c}
+      SNMP_COMMUNITY: ${TELXIUS_SNMP_COMMUNITY:-}
+      SNMP_V3_USERNAME: ${TELXIUS_SNMP_V3_USERNAME:-}
+      SNMP_V3_AUTH_KEY: ${TELXIUS_SNMP_V3_AUTH_KEY:-}
+      SNMP_V3_PRIV_KEY: ${TELXIUS_SNMP_V3_PRIV_KEY:-}
+      TELXIUS_SMARTPACK2_SN: ${TELXIUS_SMARTPACK2_SN:-}
+      SMARTPACK2_PROFILE_FILE: /app/config/telxius-smartpack2-walk.json
+    ports: ["127.0.0.1:11621:1161/udp"]
+    restart: unless-stopped
