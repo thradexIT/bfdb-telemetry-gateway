@@ -31,3 +31,13 @@ jobs:
         run: docker build -f apps/snmp-emulator/Dockerfile -t bfdb-snmp-lab:ci .
       - name: Build private-evidence Smartpack2 snapshot service
         run: docker build -f apps/snmp-snapshot-emulator/Dockerfile -t bfdb-smartpack2-snapshot:ci .
+      - name: Validate Telxius complete-data overlay
+        env:
+          MQTT_HOST: mqtt-broker.example.invalid
+          TELXIUS_SNMP_EVIDENCE_DIR: /tmp/private-evidence
+          TELXIUS_SNMP_COMMUNITY: ci-private-community
+          TELXIUS_SITE_MAPPER_SNMP_HOST: site-mapper-snmp.example.invalid
+        run: |
+          node --check apps/snmp-emulator/telxius-snapshot-inform.mjs
+          docker compose -f docker-compose.telxius-seed-01.yml \
+            --profile telxius --profile telxius-site-mapper config >/dev/null
