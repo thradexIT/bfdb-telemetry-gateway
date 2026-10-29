@@ -1,7 +1,7 @@
 version: "1.1"
 publish:
   intervalSeconds: 10.0
-  mode: panel_chunks
+  mode: full_scan_chunks
   chunkSize: 10
   batchSize: 24
   qos: 1
