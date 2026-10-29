@@ -1,36 +1,33 @@
 # Telxius seed-01 — evidence-driven hardware emulation
 
-**Status:** laboratory profile. It emulates the available Telxius field evidence without claiming commissioning truth that the evidence does not prove.
+**Status:** laboratory profile. It reproduces the available Telxius protocol evidence without promoting laboratory mappings or inferred ASN.1 types to field truth.
 
 ## Purpose
 
-This profile exists so Site Mapper can consume the same protocol shapes it will later consume from real field devices.
+BFDB owns the **hardware-emulation boundary** only.
 
 ```text
-Acrel/AWT evidence -> MQTT emulator ----\
-                                         > Site Mapper -> Latest/History/UI/Modbus
-Smartpack2 evidence -> SNMPv2c emulator -/
+Acrel/AWT evidence  -> MQTT emulator ---------> existing MQTT broker -> Site Mapper
+Smartpack2 evidence -> SNMP snapshot emulator ------------------------> Site Mapper
 ```
 
-BFDB owns the **hardware emulation boundary**. In the unified laboratory, Site Mapper owns normalization, bindings, persistence, operational UI and Modbus/Metasys projection.
+The operational MQTT broker is **not owned by BFDB**. The Telxius overlay publishes to the broker configured through `MQTT_HOST/MQTT_PORT`. The historical Mosquitto service remains useful for isolated BFDB/CI labs, but it is not the architectural production broker.
 
-The Telxius overlay intentionally does **not** replace the historical `EMU-BFDB-01..03` profile, the default BFDB gateway, TimescaleDB or Modbus map.
+Site Mapper remains owner of source/point bindings, normalized telemetry, history, UI and its own Modbus/Metasys projection.
+
+The Telxius overlay does not replace the historical `EMU-BFDB-01..03` profile or the default BFDB gateway/Modbus lab.
 
 ## Evidence boundary
 
-The profile is derived from the supplied:
+The profile is derived from privately supplied QDF/Acrel inventory, captured MQTT messages, a Smartpack2 Touch SNMPWalk and Eltek eNexus PowerSystem rev54 MIB files.
 
-- QDF equipment/breaker inventory;
-- Acrel/AWT inventory;
-- captured MQTT messages;
-- Smartpack2 Touch SNMP walk;
-- Eltek eNexus PowerSystem rev54 MIB.
+Customer raw evidence and vendor MIB files are **runtime inputs**. They are not committed to this public repository.
 
-Known evidence and laboratory assumptions are kept separate.
+---
 
-### MQTT identity
+## MQTT — complete laboratory scan
 
-The wire identity is:
+The identity contract remains:
 
 ```text
 source equipment = MQTT topic serial / payload sn
@@ -38,260 +35,251 @@ point            = reported rawPointId
 identity         = SN + rawPointId
 ```
 
-Example wire family:
+Measured points preserve `state`, `U1/U2`, `I1/I2`, `P1/P2` and `EP1/EP2`. A documented raw position without a measured channel is emitted as `{"state":"ONLINE"}` only. Missing measurement fields are not converted into fabricated zero readings.
+
+### Publication shape
+
+Captured field traffic demonstrated 24-position groups split as 10 + 10 + 4. The Telxius **completeness lab mode** now publishes every raw group in that shape:
 
 ```text
-data/dev/<sn>
-
-reported:
-  0_1_1
-  0_1_2
-  ...
+QDF source
+  group 1 -> 10 + 10 + 4
+  group 2 -> 10 + 10 + 4
+  group 3 -> 10 + 10 + 4
+  group 4 -> 10 + 10 + 4
+  wait `10 s
+  repeat
 ```
 
-The emulator preserves the observed payload fields:
+That is **12 MQTT messages per QDF per lab cycle**, covering all 96 raw addresses. This differs deliberately from the earlier rotating-panel lab mode so Site Mapper can observe the complete configured raw address space on every cycle.
+
+**Non-claim:** the capture proves the 10 + 10 + 4 packet shape, but it does not prove that real field firmware publishes all four raw groups every ten seconds. Full-scan cadence is a laboratory completeness policy.
+
+| QDF | Documented measured positions | Raw addresses emitted |
+|---|---:|---:|
+| QDF-2 | 26 | 96 |
+| QDF-4 | 12 | 96 |
+| QDF-5 | 36 | 96 |
+| **Total** | **74** | **288** |
+
+Unmeasured raw addresses remain visible as state-only points; holes are preserved and never renumbered.
+
+The lab raw group labels remain uncommissioned transport metadata. The equipment inventory separately records AWT100-CEHW, AMC16Z-FDK24 and RTU slaves A3=1, A2=3, B3=5, B2=7. There is no evidence proving `RTU slave number == MQTT raw group number`.
+
+The MQTT electrical generator remains synthetic. `12.23 V` is the present baseline because it appears in the supplied Acrel/AWT-shaped capture. Smartpack2's nominal `48 V` belongs to the SNMP/system evidence.
+
+Tracked source aliases remain `EMU-TELXIUS-QDF-2`, `EMU-TELXIUS-QDF-4` and `EMU-TELXIUS-QDF-5`. Field serials can be injected at runtime only after their QDF association is established.
+
+---
+
+## Smartpack2 — complete evidence snapshot
+
+The previous built-in Smartpack2 agent exposes a small verified subset and remains available as `telxius-smartpack2-subset` for fallback/debug use.
+
+The primary `telxius-smartpack2` service now builds a **full private snapshot at runtime** from:
 
 ```text
-msgid
-method
-sn
-timestamp
-sendtime
-version
-reported
+walk.txt
++
+EltekEnexusPowersystem-rev54.mib
++
+EltekEnexusPowersystem_branch10_rev54.mib
 ```
 
-and, for measured points:
+The supplied evidence contains **5,407 SNMP objects**. Against the supplied rev54 MIBs, the compiler resolves:
 
 ```text
-state
-U1 U2
-I1 I2
-P1 P2
-EP1 EP2
+5,407 total observed objects
+├── 2,962 symbolic walk objects -> numeric OIDs resolved from the supplied MIBs
+└── 2,445 objects already numeric in the supplied walk
 ```
 
-A state-only point is emitted as:
+No symbolic object is silently dropped. The compiler fails closed on an unresolved symbolic object or duplicate resolved OID.
 
-```json
-{"state":"ONLINE"}
-```
+### ASN.1 truth boundary
 
-Missing measurements are never converted into fabricated numeric zeroes by the state-only path.
+For the 2,962 symbolic objects, MIB syntax drives replay typing.
 
-## Captured MQTT publication shape
+For the 2,445 entries already printed as numeric OIDs, the supplied walk does not carry original ASN.1 type metadata. Their replay type is therefore inferred conservatively from the displayed value.
 
-The Telxius profile uses:
+The generated `manifest.json` records object count, symbolic/numeric counts, inferred-type count, unresolved count, textual-convention count and SHA-256 hashes of the private evidence files.
 
-- 10 s publication interval;
-- one 24-position raw group per cycle/source;
-- message chunks of 10 + 10 + 4 positions;
-- QoS 1;
-- retain=false.
+Therefore the full snapshot reproduces the observed OIDs and displayed values, but **is not claimed to be byte-for-byte BER-identical for every physical-controller response**.
 
-This mirrors the captured message shape more closely than the historical generic 24-point batch.
+### GET / GETNEXT / WALK
 
-The electrical generator is still synthetic. The current profile uses **12.23 V** as its MQTT nominal baseline because that value is present in the captured Acrel/AWT-shaped sample. This is not a claim that every field channel is fixed at 12.23 V.
-
-The Smartpack2 nominal system voltage of **48 V belongs to SNMP evidence** and must not be copied into the Acrel MQTT model.
-
-## QDF inventory represented
-
-### QDF-2
-
-Inventory breaker count: **26**.
-
-Current physical inventory positions represented:
+The private snapshot is compiled into `.snmprec` and served read-only:
 
 ```text
-A1: P01 P02 P03 P04
-A2: P01 P02 P03 P06 P07 P08 P14 P15 P16
-B1: P01 P02 P03 P04
-B2: P01 P02 P03 P06 P07 P08 P14 P15 P16
+private SNMPWalk + private MIBs
+              |
+              v
+       snapshot compiler
+              |
+       +------+------+
+       |             |
+       v             v
+ snapshot.json    *.snmprec
+                      |
+                      v
+             GET / GETNEXT / WALK
 ```
 
-### QDF-4
+Default host exposure is `udp/127.0.0.1:11621`.
 
-Inventory breaker count: **12**.
+### Complete delivery into Site Mapper
+
+There are two separate SNMP needs:
+
+1. a realistic GET/GETNEXT/WALK surface;
+2. complete Site Mapper ingestion of every captured OID/value.
+
+Site Mapper's narrow legacy feed poller is intentionally bounded; BFDB does **not** pretend it can poll an arbitrary 5,407-object controller snapshot.
+
+For complete laboratory ingestion, BFDB reuses the already-established notification transport and sends the generated snapshot in bounded INFORM batches:
 
 ```text
-A3: P01..P06
-B3: P01..P06
+5,407-point private snapshot
+          |
+          | 16 varbinds/PDU by default
+          v
+SNMP INFORM sender
+          |
+          v
+Site Mapper industrial SNMP receiver
+          |
+          v
+RAW / normalized industrial signal path
 ```
 
-### QDF-5
+Payload OIDs and values come from the evidence snapshot. The notification OID remains explicitly private/laboratory. This does **not** claim the physical Smartpack2 emits a 5,407-point INFORM sweep.
 
-Inventory breaker count: **36**.
+The sender repeats every 60 seconds by default for an active lab stream. That cadence is configurable and is not presented as field behavior.
+
+---
+
+## Private evidence preparation
+
+Create an ignored local directory:
 
 ```text
-A3: P01..P18
-B3: P01..P18
+.private-evidence/telxius-smartpack2/
+├── walk.txt
+├── EltekEnexusPowersystem-rev54.mib
+└── EltekEnexusPowersystem_branch10_rev54.mib
 ```
 
-The raw group numbers used by the emulator remain a **laboratory transport mapping**. The Acrel RTU slave addresses documented in the equipment inventory do **not** prove the real MQTT group number. Never infer `slave 1 => 0_1_*` (or equivalent) as field truth without direct evidence.
-
-The profile records the observed equipment inventory separately:
-
-```text
-gateway: AWT100-CEHW
-meter:   AMC16Z-FDK24
-A3 slave 1
-A2 slave 3
-B3 slave 5
-B2 slave 7
-```
-
-## Serial-number substitution
-
-Tracked configuration uses laboratory identities:
-
-```text
-EMU-TELXIUS-QDF-2
-EMU-TELXIUS-QDF-4
-EMU-TELXIUS-QDF-5
-```
-
-A known field serial can be substituted without editing committed files:
+Example environment:
 
 ```dotenv
-TELXIUS_QDF_2_SN=<serial>
-TELXIUS_QDF_4_SN=<serial>
-TELXIUS_QDF_5_SN=<serial>
-```
+MQTT_HOST=<existing-broker-host>
+MQTT_PORT=1883
+MQTT_USERNAME=<if-required>
+MQTT_PASSWORD=<if-required>
 
-Only set a serial after the physical QDF association is evidenced. A captured serial is not automatically assigned to a QDF merely because it is available.
-
-## U1/U2 boundary
-
-The current normalizer contract uses:
-
-```text
-U1  -> voltage
-I1  -> current
-P1  -> power
-EP1 -> energy
-```
-
-The Telxius emulator preserves `U2/I2/P2/EP2` in the MQTT wire payload as `0.00`, matching the supplied sample.
-
-Their physical meaning is not promoted into a second breaker/channel model until field evidence or manufacturer documentation proves the semantics. No hidden U2-to-breaker inference is performed.
-
-## Smartpack2 Touch SNMPv2c profile
-
-The Telxius Smartpack2 agent is read-only and uses the known **Eltek enterprise tree** instead of a fabricated Telxius private subtree.
-
-Observed scalars represented include:
-
-```text
-powerSystemStatus
-powerSystemType
-powerSystemMode
-powerSystemCompany
-powerSystemSite
-powerSystemModel
-powerSystemSerialNumber
-powerSystemNominalVoltage
-loadCurrentStatus
-loadCurrentValue
-loadFusesStatus
-loadNumberOfGroups
-batteryVoltageValue
-```
-
-It also exposes the observed load-group table and the six programmable fuse-alarm inputs:
-
-```text
-A3 Fuse alarm
-B3 Fuse Alarm
-A2 Fuse Alarm
-B2 Fuse Alarm
-A1 Fuse Alarm
-B1 Fuse Alarm
-```
-
-The agent defaults to **SNMPv2c**, matching the supplied walk workflow, but can be switched to SNMPv3 for laboratory use.
-
-The real Smartpack2 serial is never committed. Use:
-
-```dotenv
-TELXIUS_SMARTPACK2_SN=<serial>
-```
-
-## Run the opt-in Telxius hardware lab
-
-Create a locally ignored environment file. Do not commit credentials.
-
-Example:
-
-```dotenv
-TELXIUS_SNMP_VERSION=2c
+TELXIUS_SNMP_EVIDENCE_DIR=./.private-evidence/telxius-smartpack2
 TELXIUS_SNMP_COMMUNITY=<private-readonly-lab-community>
 
-# Optional only after each physical association is known:
+# Optional only after physical association is known
 # TELXIUS_QDF_2_SN=<serial>
 # TELXIUS_QDF_4_SN=<serial>
 # TELXIUS_QDF_5_SN=<serial>
-# TELXIUS_SMARTPACK2_SN=<serial>
+
+# Optional private replay substitution
+# TELXIUS_SMARTPACK2_SN_OVERRIDE=<approved-lab-or-field-serial>
 ```
 
-Start the broker and hardware emulators:
+No credentials or customer evidence belong in Git.
+
+## Start MQTT + full Smartpack2 replay
 
 ```bash
 docker compose --env-file .env.telxius \
-  -f docker-compose.yml \
   -f docker-compose.telxius-seed-01.yml \
   --profile telxius \
-  up -d --build mosquitto telxius-field-emulator telxius-smartpack2
+  up -d --build telxius-field-emulator telxius-smartpack2
 ```
 
-Observe MQTT independently:
+BFDB publishes to the configured existing MQTT broker. It does not start or own a broker in this Telxius overlay.
 
-```bash
-mosquitto_sub -h 127.0.0.1 -p 1883 -t 'data/dev/#' -v
-```
-
-Query the Smartpack2 laboratory agent from localhost:
+Query the full snapshot:
 
 ```bash
 snmpwalk -v2c -c '<private-readonly-lab-community>' \
   -On udp:127.0.0.1:11621 1.3.6.1.4.1.12148.10
 ```
 
-The UDP port is published on loopback only.
+Generated private runtime artifacts are:
+
+```text
+/runtime/manifest.json
+/runtime/snapshot.json
+/runtime/data/<community>.snmprec
+```
+
+## Optional complete push into Site Mapper
+
+Configure the Site Mapper industrial SNMP receiver endpoint and credentials it already authorizes:
+
+```dotenv
+TELXIUS_SMARTPACK2_SOURCE_ID=EMU-SMARTPACK2-LURIN
+TELXIUS_SITE_MAPPER_SNMP_HOST=<reachable-receiver>
+TELXIUS_SITE_MAPPER_SNMP_PORT=1162
+TELXIUS_SITE_MAPPER_SNMP_VERSION=3
+TELXIUS_SITE_MAPPER_SNMP_V3_USERNAME=<lab-user>
+TELXIUS_SITE_MAPPER_SNMP_V3_AUTH_KEY=<private-auth-key>
+TELXIUS_SITE_MAPPER_SNMP_V3_PRIV_KEY=<private-priv-key>
+TELXIUS_SITE_MAPPER_SNMP_INFORM=true
+TELXIUS_SNMP_REPEAT_SECONDS=60
+```
+
+Then:
+
+```bash
+docker compose --env-file .env.telxius \
+  -f docker-compose.telxius-seed-01.yml \
+  --profile telxius \
+  --profile telxius-site-mapper \
+  up -d --build \
+  telxius-field-emulator \
+  telxius-smartpack2 \
+  telxius-smartpack2-to-site-mapper
+```
+
+The receiver must be network-reachable from the BFDB container. BFDB does not guess or open a Site Mapper endpoint.
+
+---
 
 ## Site Mapper substitution contract
 
-Site Mapper should resolve:
+MQTT:
 
 ```text
 SN -> QDF/source equipment
 SN + rawPointId -> breaker/point
 ```
 
-No per-message manual assignment is required once source and point bindings are commissioned.
-
-The laboratory boundary is deliberately substitutable:
+SNMP:
 
 ```text
-today:
-  BFDB MQTT emulator + BFDB SNMP emulator -> Site Mapper
-
-field:
-  real AWT/Acrel MQTT + real Smartpack2 SNMP -> Site Mapper
+configured Smartpack2 source identity + numeric OID -> industrial signal
 ```
 
-Replacing emulation with field sources must not require an architectural redesign of Site Mapper.
+Replacing emulation with field devices should change source endpoint/credentials/identity configuration, not require a Site Mapper architectural rewrite.
 
 ## Explicit non-claims
 
-This laboratory profile does not claim that:
+This profile does not claim that:
 
-- MQTT raw group numbers are proven physical panel identities;
+- MQTT raw group numbers are commissioned physical panel identities;
 - Acrel RTU slave addresses equal MQTT raw group indexes;
-- U2/I2/P2/EP2 are understood as independent breaker channels;
-- the captured serial belongs to a specific QDF unless that association is separately evidenced;
-- synthetic electrical values are field measurements;
-- laboratory success is field commissioning;
-- the existing Modbus Unit-ID/register map has been commissioned for these QDFs.
-
-Those decisions remain evidence/commissioning gates.
+- real AWT firmware publishes all four groups every ten seconds;
+- `U2/I2/P2/EP2` are independent breaker channels;
+- synthetic MQTT electrical values are field measurements;
+- all 2,445 originally numeric SNMP OIDs have manufacturer-verified ASN.1 types;
+- textual-convention replay is byte-identical to the physical controller;
+- the physical Smartpack2 sends the full 5,407-point snapshot as an INFORM;
+- Smartpack2 provides individual telemetry for the 74 Acrel breakers;
+- a captured serial belongs to a particular QDF unless separately evidenced;
+- the existing Modbus map is commissioned for QDF-2/4/5;
+- laboratory success is field commissioning.
