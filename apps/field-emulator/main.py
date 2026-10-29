@@ -8,7 +8,10 @@ ROOT=Path(__file__).resolve().parents[2]
 CONFIG=ROOT/"config"
 
 def load_yaml(name):
-    with (CONFIG/name).open("r",encoding="utf-8") as f:
+    candidate=Path(name)
+    if candidate.name!=name or candidate.suffix not in {".yaml",".yml"}:
+        raise ValueError(f"invalid emulator config filename: {name}")
+    with (CONFIG/candidate).open("r",encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 def point_payload(s):
@@ -21,8 +24,10 @@ def point_payload(s):
     }
 
 def main():
-    devices=load_yaml("devices.yaml")["devices"]
-    cfg=load_yaml("emulator.yaml")
+    devices_file=os.getenv("EMULATOR_DEVICES_FILE","devices.yaml")
+    emulator_file=os.getenv("EMULATOR_CONFIG_FILE","emulator.yaml")
+    devices=load_yaml(devices_file)["devices"]
+    cfg=load_yaml(emulator_file)
     pubcfg=cfg["publish"]
 
     pub=MqttPublisher(
@@ -75,7 +80,8 @@ def main():
         f"EMULATOR_READY devices={len(devices)} "
         f"circuits_per_bfdb={circuits} "
         f"positions_per_panel={positions_per_panel} "
-        f"panels_per_bfdb={panels_per_bfdb}",
+        f"panels_per_bfdb={panels_per_bfdb} "
+        f"devices_file={devices_file} emulator_file={emulator_file}",
         flush=True,
     )
 
