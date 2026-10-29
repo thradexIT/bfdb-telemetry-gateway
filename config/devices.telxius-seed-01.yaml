@@ -1,0 +1,41 @@
+version: "1.0"
+profile: telxius-seed-01-synthetic
+devices:
+  - bfdbId: QDF-2
+    serial: EMU-TELXIUS-QDF-2
+    unitId: 1
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      syntheticPanelOrder: [A3, A2, B3, B2]
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+
+  - bfdbId: QDF-4
+    serial: EMU-TELXIUS-QDF-4
+    unitId: 2
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      syntheticPanelOrder: [A3, A2, B3, B2]
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
+
+  - bfdbId: QDF-5
+    serial: EMU-TELXIUS-QDF-5
+    unitId: 3
+    identity:
+      mode: emulator_panelized
+      pointRegex: "^0_([0-9]+)_([0-9]+)$"
+      panelsPerBfdb: 4
+      positionsPerPanel: 24
+      minCircuit: 1
+      maxCircuit: 96
+      syntheticPanelOrder: [A3, A2, B3, B2]
+    fields: {voltage: U1, current: I1, power: P1, energy: EP1}
