@@ -54,7 +54,7 @@ def point_payload(sample):
 
 def panel_label(device, panel_index):
     ident = device["identity"]
-    labels = ident.get("physicalPanelOrder") or ident.get("syntheticPanelOrder") or []
+    labels = (\n        ident.get("labPanelOrder")\n        or ident.get("physicalPanelOrder")\n        or ident.get("syntheticPanelOrder")\n        or []\n    )
     if labels and len(labels) != int(ident["panelsPerBfdb"]):
         raise ValueError(
             f"panel order length mismatch for {device['serial']}: "
