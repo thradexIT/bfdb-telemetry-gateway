@@ -1,24 +1,84 @@
-# Opt-in Telxius seed-01 hardware-emulation overlay.
-# Site Mapper remains the consumer/owner of normalized telemetry, history and Modbus.
+# Opt-in Telxius evidence-driven hardware-emulation overlay.
+# The operational MQTT broker is external/configured; BFDB does not own it.
+# Site Mapper remains the consumer/owner of bindings, normalized telemetry,
+# history and Modbus/Metasys projection.
 services:
   telxius-field-emulator:
     profiles: [telxius]
     build: .
     command: ["python", "apps/field-emulator/main.py"]
     environment:
-      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_HOST: ${MQTT_HOST:?Set MQTT_HOST to the existing MQTT broker host}
       MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       EMULATOR_DEVICES_FILE: devices.telxius-seed-01.yaml
       EMULATOR_CONFIG_FILE: emulator.telxius-seed-01.yaml
       TELXIUS_QDF_2_SN: ${TELXIUS_QDF_2_SN:-}
       TELXIUS_QDF_4_SN: ${TELXIUS_QDF_4_SN:-}
       TELXIUS_QDF_5_SN: ${TELXIUS_QDF_5_SN:-}
-    depends_on:
-      mosquitto: {condition: service_started}
+    extra_hosts:
+      - host.docker.internal:host-gateway
     restart: unless-stopped
 
+  # Full read-only GET/GETNEXT/WALK replay. Private evidence is mounted at
+  # runtime and compiled to 5,407 numeric OIDs; no customer walk or vendor MIB
+  # is committed to this public repository.
   telxius-smartpack2:
     profiles: [telxius]
+    build:
+      context: .
+      dockerfile: apps/snmp-snapshot-emulator/Dockerfile
+    environment:
+      SNMP_WALK_FILE: /evidence/walk.txt
+      SNMP_MIB_FILES: /evidence/EltekEnexusPowersystem-rev54.mib:/evidence/EltekEnexusPowersystem_branch10_rev54.mib
+      SNMP_AGENT_PORT: 1161
+      SNMP_COMMUNITY: ${TELXIUS_SNMP_COMMUNITY:?Set a private read-only Telxius lab community}
+      TELXIUS_SMARTPACK2_SN_OVERRIDE: ${TELXIUS_SMARTPACK2_SN_OVERRIDE:-}
+      SNMP_SIM_LOG_LEVEL: ${TELXIUS_SNMP_SIM_LOG_LEVEL:-info}
+    volumes:
+      - ${TELXIUS_SNMP_EVIDENCE_DIR:?Set TELXIUS_SNMP_EVIDENCE_DIR to a private directory}:/evidence:ro
+      - telxius-snmp-runtime:/runtime
+    ports: ["127.0.0.1:11621:1161/udp"]
+    restart: unless-stopped
+
+  # Optional complete-snapshot delivery into Site Mapper's already-existing
+  # industrial SNMP trap/inform receiver. This is a LAB delivery mechanism:
+  # payload OIDs/values come from the evidence snapshot; the notification OID
+  # remains explicitly private/laboratory.
+  telxius-smartpack2-to-site-mapper:
+    profiles: [telxius-site-mapper]
+    build:
+      context: .
+      dockerfile: apps/snmp-emulator/Dockerfile
+    command: ["node", "telxius-snapshot-inform.mjs"]
+    environment:
+      SNMP_SNAPSHOT_FILE: /runtime/snapshot.json
+      TELXIUS_SNMP_SOURCE_ID: ${TELXIUS_SMARTPACK2_SOURCE_ID:-EMU-SMARTPACK2-LURIN}
+      SNMP_TRAP_TARGET_HOST: ${TELXIUS_SITE_MAPPER_SNMP_HOST:?Set Site Mapper SNMP receiver host}
+      SNMP_TRAP_TARGET_PORT: ${TELXIUS_SITE_MAPPER_SNMP_PORT:-1162}
+      SNMP_VERSION: ${TELXIUS_SITE_MAPPER_SNMP_VERSION:-3}
+      SNMP_COMMUNITY: ${TELXIUS_SITE_MAPPER_SNMP_COMMUNITY:-}
+      SNMP_V3_USERNAME: ${TELXIUS_SITE_MAPPER_SNMP_V3_USERNAME:-}
+      SNMP_V3_AUTH_KEY: ${TELXIUS_SITE_MAPPER_SNMP_V3_AUTH_KEY:-}
+      SNMP_V3_PRIV_KEY: ${TELXIUS_SITE_MAPPER_SNMP_V3_PRIV_KEY:-}
+      SNMP_TRAP_INFORM: ${TELXIUS_SITE_MAPPER_SNMP_INFORM:-true}
+      SNMP_SNAPSHOT_BATCH_SIZE: ${TELXIUS_SNMP_BATCH_SIZE:-16}
+      SNMP_SNAPSHOT_BATCH_INTERVAL_MS: ${TELXIUS_SNMP_BATCH_INTERVAL_MS:-40}
+      SNMP_SNAPSHOT_REPEAT_SECONDS: ${TELXIUS_SNMP_REPEAT_SECONDS:-60}
+    volumes:
+      - telxius-snmp-runtime:/runtime:ro
+    depends_on:
+      telxius-smartpack2:
+        condition: service_started
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+  # Compact built-in subset retained as a fallback/debug surface when the
+  # private 5,407-point evidence pack is intentionally unavailable.
+  telxius-smartpack2-subset:
+    profiles: [telxius-subset]
     build:
       context: .
       dockerfile: apps/snmp-emulator/Dockerfile
@@ -31,7 +91,10 @@ services:
       SNMP_V3_USERNAME: ${TELXIUS_SNMP_V3_USERNAME:-}
       SNMP_V3_AUTH_KEY: ${TELXIUS_SNMP_V3_AUTH_KEY:-}
       SNMP_V3_PRIV_KEY: ${TELXIUS_SNMP_V3_PRIV_KEY:-}
-      TELXIUS_SMARTPACK2_SN: ${TELXIUS_SMARTPACK2_SN:-}
+      TELXIUS_SMARTPACK2_SN: ${TELXIUS_SMARTPACK2_SN_OVERRIDE:-}
       SMARTPACK2_PROFILE_FILE: /app/config/telxius-smartpack2-walk.json
-    ports: ["127.0.0.1:11621:1161/udp"]
+    ports: ["127.0.0.1:11622:1161/udp"]
     restart: unless-stopped
+
+volumes:
+  telxius-snmp-runtime:
