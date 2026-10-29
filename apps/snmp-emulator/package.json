@@ -11,7 +11,8 @@
     "test": "node --test",
     "traps": "node eltek-traps.mjs",
     "sequence": "node eltek-sequence.mjs",
-    "eltek-lab": "node eltek-lab-service.mjs"
+    "eltek-lab": "node eltek-lab-service.mjs",
+    "telxius-smartpack2": "node telxius-smartpack2-walk-agent.mjs"
   },
   "dependencies": {
     "net-snmp": "3.29.2"
