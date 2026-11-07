@@ -1,6 +1,6 @@
 # Optional SNMPv3 agent lab. Does not modify existing MQTT, TSDB or Modbus services.
 # Run: docker compose -f docker-compose.yml -f docker-compose.snmp.yml --profile snmp up -d --build snmp-agent-bfdb-01 snmp-agent-bfdb-02 snmp-agent-bfdb-03
-# Use LOCALHOST-ONLY UDP published ports. Never expose these agents publicly.
+# Bind UDP to a host-local address only. For cross-compose Docker collectors, set SNMP_PUBLISH_HOST to the Docker host-gateway IP; never use 0.0.0.0 on field hosts.
 x-snmp-agent-defaults: &snmp-agent-defaults
   profiles: [snmp]
   build:
@@ -35,7 +35,7 @@ services:
       SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:-}
       SNMP_EMULATOR_BFDB_ID: BFDB-01
       SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-01
-    ports: ["127.0.0.1:11611:1161/udp"]
+    ports: ["${SNMP_PUBLISH_HOST:-127.0.0.1}:11611:1161/udp"]
 
   snmp-agent-bfdb-02:
     <<: *snmp-agent-defaults
@@ -52,7 +52,7 @@ services:
       SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:-}
       SNMP_EMULATOR_BFDB_ID: BFDB-02
       SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-02
-    ports: ["127.0.0.1:11612:1161/udp"]
+    ports: ["${SNMP_PUBLISH_HOST:-127.0.0.1}:11612:1161/udp"]
 
   snmp-agent-bfdb-03:
     <<: *snmp-agent-defaults
@@ -69,4 +69,4 @@ services:
       SNMP_V3_PRIV_KEY: ${SNMP_V3_PRIV_KEY:-}
       SNMP_EMULATOR_BFDB_ID: BFDB-03
       SNMP_EMULATOR_SOURCE_ID: EMU-DELTA-BFDB-03
-    ports: ["127.0.0.1:11613:1161/udp"]
+    ports: ["${SNMP_PUBLISH_HOST:-127.0.0.1}:11613:1161/udp"]
