@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "repeat": false,
+  "steps": [
+    {
+      "delayMs": 1000,
+      "name": "alarmControlSystemTrap",
+      "sourceDescription": "CtrlUnitPower",
+      "statusOid": "1.3.6.1.4.1.12148.10.13.12.1.1.0",
+      "condition": 3,
+      "active": true,
+      "metric": "voltage",
+      "measuredOid": "1.3.6.1.4.1.12148.10.13.12.1.5.0",
+      "measuredValue": 1,
+      "alarmCounter": 0,
+      "upTimeTicks": 173850700
+    },
+    {
+      "delayMs": 2000,
+      "name": "alarmControlSystemTrap",
+      "sourceDescription": "CtrlUnitPower",
+      "statusOid": "1.3.6.1.4.1.12148.10.13.12.1.1.0",
+      "condition": 3,
+      "active": false,
+      "metric": "voltage",
+      "measuredOid": "1.3.6.1.4.1.12148.10.13.12.1.5.0",
+      "measuredValue": 1,
+      "alarmCounter": 0,
+      "upTimeTicks": 173862700
+    }
+  ]
+}
