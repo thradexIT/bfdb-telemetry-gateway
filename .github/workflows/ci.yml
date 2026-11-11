@@ -1,6 +1,8 @@
 name: CI
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 jobs:
   unit:
@@ -105,4 +107,7 @@ jobs:
         run: |
           node --check apps/snmp-emulator/telxius-snapshot-inform.mjs
           docker compose -f docker-compose.telxius-seed-01.yml \
-            --profile telxius --profile telxius-site-mapper config >/dev/null
+            --profile telxius \
+            --profile telxius-site-mapper \
+            --profile telxius-client-parity \
+            config >/dev/null
