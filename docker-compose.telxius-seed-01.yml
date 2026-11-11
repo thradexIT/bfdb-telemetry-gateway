@@ -25,7 +25,7 @@ services:
   # runtime and compiled to 5,407 numeric OIDs; no customer walk or vendor MIB
   # is committed to this public repository.
   telxius-smartpack2:
-    profiles: [telxius]
+    profiles: [telxius, telxius-client-parity]
     build:
       context: .
       dockerfile: apps/snmp-snapshot-emulator/Dockerfile
@@ -74,6 +74,31 @@ services:
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
+
+  # Client-parity event path. This sender deliberately shares the exact network
+  # namespace of telxius-smartpack2 so Site Mapper sees GET/WALK and TRAP traffic
+  # from one emulated controller origin, matching the physical SmartPack2 contract.
+  # It emits one controlled CtrlUnitPower Major ON followed by OFF/CLEAR using the
+  # field-observed Eltek rev54 notification/varbind identities. No customer secret
+  # or customer evidence is stored in this public repository.
+  telxius-smartpack2-client-parity-traps:
+    profiles: [telxius-client-parity]
+    build:
+      context: .
+      dockerfile: apps/snmp-emulator/Dockerfile
+    command: ["node", "eltek-sequence.mjs"]
+    network_mode: "service:telxius-smartpack2"
+    environment:
+      SNMP_TRAP_TARGET_HOST: ${TELXIUS_SITE_MAPPER_SNMP_HOST:?Set Site Mapper SNMP receiver host}
+      SNMP_TRAP_TARGET_PORT: ${TELXIUS_SITE_MAPPER_SNMP_PORT:-1162}
+      SNMP_VERSION: "2c"
+      SNMP_COMMUNITY: ${TELXIUS_SNMP_COMMUNITY:?Set the same private lab community authorized by Site Mapper}
+      SNMP_TRAP_INFORM: "false"
+      SNMP_SEQUENCE_FILE: /app/config/telxius-smartpack2-client-parity.sequence.json
+    depends_on:
+      telxius-smartpack2:
+        condition: service_started
+    restart: "no"
 
   # Compact built-in subset retained as a fallback/debug surface when the
   # private 5,407-point evidence pack is intentionally unavailable.

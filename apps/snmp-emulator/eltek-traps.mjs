@@ -30,10 +30,14 @@ export function trapScenario({
   name = "alarmPowerSystemTrap",
   metric = "voltage",
   measuredValue,
+  measuredOid,
+  sourceDescription = "SYNTHETIC-LAB",
   active = true,
   statusOid = `${root}.2.1.0`,
   condition = 3,
   counter = 1,
+  alarmCounter,
+  upTimeTicks,
   unknown = false,
 }) {
   if (
@@ -41,6 +45,13 @@ export function trapScenario({
     typeof active !== "boolean" ||
     !Number.isInteger(counter) ||
     counter < 0 ||
+    (alarmCounter !== undefined && (!Number.isInteger(alarmCounter) || alarmCounter < 0)) ||
+    (upTimeTicks !== undefined && (!Number.isInteger(upTimeTicks) || upTimeTicks < 0)) ||
+    typeof sourceDescription !== "string" ||
+    !sourceDescription ||
+    sourceDescription.length > 64 ||
+    (measuredOid !== undefined &&
+      !/^1\.3\.6\.1\.[0-9.]+$/.test(measuredOid)) ||
     !Number.isInteger(condition) ||
     condition < 0 ||
     condition > 19 ||
@@ -50,6 +61,8 @@ export function trapScenario({
   if (!Object.hasOwn(SYNTHETIC_MEASUREMENTS, metric))
     throw new Error("Unknown synthetic measurement");
   const measured = SYNTHETIC_MEASUREMENTS[metric];
+  const effectiveMeasuredOid = measuredOid ?? measured.oid;
+  const effectiveAlarmCounter = alarmCounter ?? counter;
   const rawValue = measuredValue ?? measured.raw;
   if (
     !Number.isInteger(rawValue) ||
@@ -64,14 +77,17 @@ export function trapScenario({
           {
             oid: `${root}.1.1.1.0`,
             type: snmp.ObjectType.OctetString,
-            value: "SYNTHETIC-LAB-HEARTBEAT",
+            value:
+              sourceDescription === "SYNTHETIC-LAB"
+                ? "SYNTHETIC-LAB-HEARTBEAT"
+                : sourceDescription,
           },
         ]
       : [
           {
             oid: `${root}.1.1.1.0`,
             type: snmp.ObjectType.OctetString,
-            value: "SYNTHETIC-LAB",
+            value: sourceDescription,
           },
           {
             oid: `${root}.1.1.2.0`,
@@ -91,7 +107,7 @@ export function trapScenario({
           {
             oid: `${root}.1.1.5.0`,
             type: snmp.ObjectType.OID,
-            value: measured.oid,
+            value: effectiveMeasuredOid,
           },
           {
             oid: `${root}.1.1.6.0`,
@@ -101,7 +117,7 @@ export function trapScenario({
           {
             oid: `${root}.1.1.7.0`,
             type: snmp.ObjectType.Integer,
-            value: counter,
+            value: effectiveAlarmCounter,
           },
           {
             oid: `${root}.1.1.8.0`,
@@ -161,7 +177,7 @@ export async function sendEltekTrap(config, scenario) {
       session[config.inform ? "inform" : "trap"](
         oid,
         varbinds,
-        { upTime: scenario.counter ?? 1 },
+        { upTime: scenario.upTimeTicks ?? scenario.counter ?? 1 },
         (e) => (e ? reject(e) : resolve()),
       ),
     );
@@ -195,6 +211,24 @@ if (
       metric: process.env.SNMP_TRAP_MEASUREMENT || "voltage",
       ...(process.env.SNMP_TRAP_RAW_VALUE !== undefined
         ? { measuredValue: Number(process.env.SNMP_TRAP_RAW_VALUE) }
+        : {}),
+      ...(process.env.SNMP_TRAP_MEASURED_OID
+        ? { measuredOid: process.env.SNMP_TRAP_MEASURED_OID }
+        : {}),
+      ...(process.env.SNMP_TRAP_SOURCE_DESCRIPTION
+        ? { sourceDescription: process.env.SNMP_TRAP_SOURCE_DESCRIPTION }
+        : {}),
+      ...(process.env.SNMP_TRAP_STATUS_OID
+        ? { statusOid: process.env.SNMP_TRAP_STATUS_OID }
+        : {}),
+      ...(process.env.SNMP_TRAP_CONDITION !== undefined
+        ? { condition: Number(process.env.SNMP_TRAP_CONDITION) }
+        : {}),
+      ...(process.env.SNMP_TRAP_ALARM_COUNTER !== undefined
+        ? { alarmCounter: Number(process.env.SNMP_TRAP_ALARM_COUNTER) }
+        : {}),
+      ...(process.env.SNMP_TRAP_UPTIME_TICKS !== undefined
+        ? { upTimeTicks: Number(process.env.SNMP_TRAP_UPTIME_TICKS) }
         : {}),
       counter: counter++,
       unknown: process.env.SNMP_TRAP_UNKNOWN === "true",
