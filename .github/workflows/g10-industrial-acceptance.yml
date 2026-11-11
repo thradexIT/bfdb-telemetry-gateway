@@ -40,7 +40,7 @@ jobs:
         with:
           repository: em3rc0dTh/AppM-Site-Mapper
           # Pinned current Site Mapper main for reproducible TFARM04 release acceptance.
-          ref: 9f1118ac6ed7508fc0f705585cd05cc91717bf84
+          ref: 8879649070ad6ce025db5cbdb531d4b2e73c0bf5
           path: site-mapper
           persist-credentials: false
 
@@ -86,7 +86,7 @@ jobs:
 
       - name: Assert 5407 RAW signals reach Mongo and Timescale and FC03 quality/value
         working-directory: site-mapper
-        run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600
+        run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600 --mongo-db seed-01
 
       - name: Report safe diagnostics on failure
         if: failure()
