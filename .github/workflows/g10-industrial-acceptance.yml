@@ -40,7 +40,7 @@ jobs:
         with:
           repository: em3rc0dTh/AppM-Site-Mapper
           # Pinned current Site Mapper main for reproducible TFARM04 release acceptance.
-          ref: 8879649070ad6ce025db5cbdb531d4b2e73c0bf5
+          ref: def26d7cee9063276cd118444c0b5a374a4c77ef
           path: site-mapper
           persist-credentials: false
 
