@@ -1,4 +1,4 @@
-name: G10 SNMP -> Mongo -> Timescale -> FC03 integrated acceptance
+name: G10 SNMP -> Mongo -> Timescale -> FC04 integrated acceptance
 
 on:
   pull_request:
@@ -84,7 +84,7 @@ jobs:
             exit 1
           fi
 
-      - name: Assert 5407 RAW signals reach Mongo and Timescale and FC03 quality/value
+      - name: Assert 5407 RAW signals reach Mongo and Timescale and FC04 quality/value
         working-directory: site-mapper
         run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600 --mongo-db seed-01
 
