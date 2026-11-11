@@ -1,11 +1,23 @@
-name: G10 SNMP -> Mongo -> Timescale -> FC03 integrated acceptance
+name: G10 SNMP -> Mongo -> Timescale -> FC04 integrated acceptance
 
 on:
   pull_request:
     paths:
       - 'apps/snmp-emulator/**'
-      - '.github/workflows/g10-industrial-acceptance.yml'
+      - 'apps/snmp-snapshot-emulator/**'
+      - 'docker-compose.telxius-seed-01.yml'
       - 'config/eltek-sequence.example.json'
+      - 'config/telxius-smartpack2-client-parity.sequence.json'
+      - '.github/workflows/g10-industrial-acceptance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/snmp-emulator/**'
+      - 'apps/snmp-snapshot-emulator/**'
+      - 'docker-compose.telxius-seed-01.yml'
+      - 'config/eltek-sequence.example.json'
+      - 'config/telxius-smartpack2-client-parity.sequence.json'
+      - '.github/workflows/g10-industrial-acceptance.yml'
   workflow_dispatch:
 
 permissions:
@@ -23,12 +35,12 @@ jobs:
         with:
           path: bfdb
 
-      - name: Checkout public Site Mapper G10 PR branch
+      - name: Checkout reviewed Site Mapper main baseline
         uses: actions/checkout@v4
         with:
           repository: em3rc0dTh/AppM-Site-Mapper
-          # Pinned reviewed G10 source for reproducible cross-repository acceptance.
-          ref: f84584768944346461a5ab1ff008e3ae407b0109
+          # Pinned current Site Mapper main for reproducible TFARM04 release acceptance.
+          ref: def26d7cee9063276cd118444c0b5a374a4c77ef
           path: site-mapper
           persist-credentials: false
 
@@ -72,9 +84,9 @@ jobs:
             exit 1
           fi
 
-      - name: Assert 5407 RAW signals reach Mongo and Timescale and FC03 quality/value
+      - name: Assert 5407 RAW signals reach Mongo and Timescale and FC04 quality/value
         working-directory: site-mapper
-        run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600
+        run: python3 scripts/telemetry/accept-eltek-rich-lab.py --expected 5407 --timeout 600 --mongo-db seed-01
 
       - name: Report safe diagnostics on failure
         if: failure()
